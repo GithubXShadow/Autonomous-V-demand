@@ -1,0 +1,26 @@
+       2          24    # of vehicles in the file, Max # of stops
+  counter,i,Traveller_ID(i),StartTime,numtrips,MappedTAZ,valid_car,first_car_trip,first_transit_trip,value_of_time
+  Trip Head: TAZMap_of_tripij  ActivityTime   tripmode   orig_purpose   dest_purpose  orig_maz  orig_taz   dest_maz  dest_taz  tripdriverpassengerflag    tripjointflag  tripparkrideflag   starttimeinterval   starttime  abm_trip_index   trip_driver_id   parking_taz
+         1       815   8600957    1.00    11     1     1     0     0  0.1164       2
+          16   24.00     1 Home            Shop               1    1        62        16    1    0    0    1       1.0000      3643           8600957         0
+           5   32.00     3 Shop            eatingout         62   16        20         5    1    0    0    1      31.0000      3644           8600957         0
+           1   39.00     1 eatingout       Maintenance       20    5         3         1    1    0    0    1      68.0000      3645           8600957         0
+           1  198.00     3 Maintenance     Home               3    1         1         1    1    0    0    1     109.0000      3646           8600957         0
+           4  191.00     1 Home            work               1    1        14         4    1    0    0    8     308.0000      3641           8600957         0
+           1   43.00     7 Work            work-based        14    4         4         1   -1    0    0   14     500.0000      3647                 0         0
+           5   19.00     7 work-based      Discretionary      4    1        17         5   -1    0    0   16     557.0000      3648                 0         0
+           4  273.00     7 Discretionary   Work              17    5        14         4   -1    0    0   17     588.0000      3649                 0         0
+           1   35.00     1 work            Home              14    4         1         1    1    0    0   27     873.0000      3642           8600957         0
+          10   77.00     3 Home            discretionary      1    1        38        10   -1    1    0   28     914.0000    333447           8600958         0
+           1  437.00     3 discretionary   Home              38   10         1         1   -1    1    0   31     998.0000    333448           8600958         0
+         2      9007   9902110    1.00    10     3     0     0     0  0.2456       1
+          19  154.00     5 Home            discretionary      9    3        73        19   -1    1    0    1       1.0000    335263           9902112         0
+           3    8.00     5 discretionary   Home              73   19         9         3   -1    1    0    3     161.0000    335264           9902112         0
+          18   10.00    10 Home            work-related       9    3        69        18   -1    0    0    3     174.0000     40048                 0         0
+          18  274.00     7 work-related    work              69   18        71        18   -1    0    0    4     195.0000     40049                 0         0
+          17   40.00     7 Work            work-based        71   18        66        17   -1    0    0   14     482.0000     40054                 0         0
+          18  303.00     7 work-based      Work              66   17        71        18   -1    0    0   15     535.0000     40055                 0         0
+           3   17.00    10 work            Home              71   18         9         3   -1    0    0   26     852.0000     40050                 0         0
+           3    5.00     7 Home            EatingOut          9    3        10         3   -1    0    0   28     928.0000     40051                 0         0
+          16    5.00     8 EatingOut       shop              10    3        62        16   -1    0    0   29     944.0000     40052                 0         0
+           3  466.00     8 shop            Home              62   16         9         3   -1    0    0   29     954.0000     40053                 0         0
