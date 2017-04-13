@@ -99,7 +99,7 @@ def read_xy(path):
         line_list_temp=line.split()
         line_list_temp=[float(j) for j in line_list_temp]
         nodexy.update({line_list_temp[0]:[line_list_temp[1]/1000000.0,line_list_temp[2]/1000000.0]})
-    return
+    return nodexy
 def read_origin_destion(origin_path,destination_path):
     global origins,destinations
     origin_links=[]
@@ -118,7 +118,7 @@ def read_origin_destion(origin_path,destination_path):
                 link_counter=0
             else:
                 origin_links.append([zone_id,int(line_temp[0]),int(line_temp[1])])
-                origin_nodes.append([zone_id,int(line_temp[0])])
+                origin_nodes.append([zone_id,int(line_temp[1])])
                 link_counter +=1
                 if link_counter==num_links:
                     zoneflag=1
@@ -130,7 +130,7 @@ def read_origin_destion(origin_path,destination_path):
             destination_nodes.append([int(line_temp[0]),int(line_temp[i+2])])
     destinations=pd.DataFrame(destination_nodes,columns=['zone_id','nodes'])
     origins=pd.DataFrame(origin_nodes,columns=['zone_id','nodes'])
-    return
+    return origins, destinations
 
 
 # In[ ]:
@@ -145,21 +145,18 @@ def cluster_highlight(linklist):
         Gnormal.add_node(node,pos=(nodexy[node][0],nodexy[node][1]))
         Gred.add_node(node,pos=(nodexy[node][0],nodexy[node][1]))
     counter=0
-    red_link=[]
     normal_link=[]
     for linkinf in link_detail: 
         if counter in linklist:
-            red_link.append((linkinf[0,0],linkinf[0,1]))
             Gred.add_edge(linkinf[0,0],linkinf[0,1])
-            
         else:
             normal_link.append((linkinf[0,0],linkinf[0,1]))
             Gnormal.add_edge(linkinf[0,0],linkinf[0,1])
         counter=counter+1
             
     pos=nx.get_node_attributes(Gnormal,'pos')
-    nx.draw(Gnormal,pos,node_size=1)
-    nx.draw(Gred,pos,edge_color='r',width=4,node_size=4)
+    nx.draw(Gnormal,pos,node_size=1,node_color='black')
+    nx.draw(Gred,pos,edge_color='r',node_color='black',width=4,node_size=4)
     #nx.draw_networkx_nodes(G,pos,node_size=50)
     return
 
@@ -167,9 +164,7 @@ def cluster_highlight(linklist):
 # In[ ]:
 
 def convert_travelerdat(input_path,output_path):
-    
-    
-    global num_traveler,max_num_trips,traveler_info
+    #global num_traveler,max_num_trips,traveler_info
     file=open(path)
     num_lines = sum(1 for line in file)
     file.close()
