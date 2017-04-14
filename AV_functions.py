@@ -55,6 +55,7 @@ def trip_chain_highlight(trip_chain_or,node_detail,link_detail,nodexy):
     '''
         input trip_chain_or: a dataframe contains the origin and destination nodes of all the trips in one trip chain
     '''
+    plt.pyplot.figure()
     Gnormal=nx.Graph()
     Gred=nx.Graph()
     for nodeinf in node_detail:
