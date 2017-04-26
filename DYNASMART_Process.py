@@ -254,3 +254,18 @@ def add_od_node_all_travelers(traveler_trips):
     traveler_trips['origin_node']=a
     traveler_trips['destination_node']=b
     return traveler_trips
+
+def distance_between_link(link_ID1,link_ID2,link_xy):
+
+    distance=math.sqrt((link_xy[link_ID1][0]-link_xy[link_ID2][0])**2+(link_xy[link_ID1][1]-link_xy[link_ID2][1])**2)
+    return distance
+def c_link_xy (links):
+    global link_xy
+    link_xy=[]
+    for link_ID1 in links: 
+        link_xy.append([(nodexy[link_detail[link_ID1,0]][0]+nodexy[link_detail[link_ID1,1]][0])/2,
+                       (nodexy[link_detail[link_ID1,0]][1]+nodexy[link_detail[link_ID1,1]][1])/2])
+    return 
+def distance_between_nodes(node_ID1,node_ID2,node_xy):
+    distance=math.sqrt((node_xy[node_ID1][0]-node_xy[node_ID2][0])**2+(node_xy[node_ID1][1]-node_xy[node_ID2][1])**2)
+    return distance
