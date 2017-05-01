@@ -67,7 +67,8 @@ def trip_chain_highlight(trip_chain_or,node_detail,link_detail,nodexy):
     for index,row in trip_chain_or.iterrows():
         Gred.add_edge(row['origin_node'],row['destination_node'])
     pos=nx.get_node_attributes(Gnormal,'pos')
-    nx.draw(Gnormal,pos,node_size=1,node_color='black',dpi=900)             nx.draw(Gred,pos,edge_color='r',node_color='black',node_size=4,arrows=True,style='dotted',dpi=900)
+    nx.draw(Gnormal,pos,node_size=1,node_color='black',dpi=900)             
+    nx.draw(Gred,pos,edge_color='r',node_color='black',node_size=4,arrows=True,style='dotted',dpi=900)
     return  
 
 def calculate_node_distance_matrix(visit_candidate,nodexy,C):
