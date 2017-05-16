@@ -74,5 +74,8 @@ def trip_chain_highlight(trip_chain_or,node_detail,link_detail,nodexy):
 def calculate_node_distance_matrix(visit_candidate,nodexy,C):
     for (orig_node,i) in zip(visit_candidate,range(len(visit_candidate))):
         for (dest_node,j) in zip(visit_candidate,range(len(visit_candidate))):
-            C[i,j]=dy.distance_between_nodes(orig_node,dest_node,nodexy)
+            if i!=j:
+                C[i,j]=dy.distance_between_nodes(orig_node,dest_node,nodexy)
+            else:
+                C[i,j]=2000
     return C

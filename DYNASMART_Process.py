@@ -267,5 +267,7 @@ def c_link_xy (links):
                        (nodexy[link_detail[link_ID1,0]][1]+nodexy[link_detail[link_ID1,1]][1])/2])
     return 
 def distance_between_nodes(node_ID1,node_ID2,node_xy):
-    distance=math.sqrt((node_xy[node_ID1][0]-node_xy[node_ID2][0])**2+(node_xy[node_ID1][1]-node_xy[node_ID2][1])**2)
+    lattomile=69
+    longtomile=53
+    distance=math.sqrt(((node_xy[node_ID1][0]-node_xy[node_ID2][0])*lattomile)**2+((node_xy[node_ID1][1]-node_xy[node_ID2][1])*longtomile)**2)
     return distance
