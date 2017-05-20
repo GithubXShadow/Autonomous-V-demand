@@ -79,3 +79,15 @@ def calculate_node_distance_matrix(visit_candidate,nodexy,C):
             else:
                 C[i,j]=2000
     return C
+
+def calculate_node_travel_time_matrix(visit_candidate,nodexy):
+    C=np.ones((len(visit_candidate),len(visit_candidate)))
+    for (orig_node,i) in zip(visit_candidate,range(len(visit_candidate))):
+        for (dest_node,j) in zip(visit_candidate,range(len(visit_candidate))):
+            if i<j:
+                C[i,j]=dy.travel_time_between_nodes(orig_node,dest_node,nodexy)
+                C[j,i]=C[i,j]
+            elif i==j:
+                C[i,j]=2000
+    return C
+    

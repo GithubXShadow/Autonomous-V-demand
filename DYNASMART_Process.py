@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import matplotlib as plt
 import networkx as nx
-
 import math
 import random
+import requests
 
 def read_network(path):
     '''
@@ -266,8 +266,16 @@ def c_link_xy (links):
         link_xy.append([(nodexy[link_detail[link_ID1,0]][0]+nodexy[link_detail[link_ID1,1]][0])/2,
                        (nodexy[link_detail[link_ID1,0]][1]+nodexy[link_detail[link_ID1,1]][1])/2])
     return 
+
 def distance_between_nodes(node_ID1,node_ID2,node_xy):
     lattomile=69
     longtomile=53
     distance=math.sqrt(((node_xy[node_ID1][0]-node_xy[node_ID2][0])*lattomile)**2+((node_xy[node_ID1][1]-node_xy[node_ID2][1])*longtomile)**2)
     return distance
+def travel_time_between_nodes(node_ID1,node_ID2,node_xy):
+    origin_lat_long=str(-nodexy[node_ID1][1])+","+str(nodexy[node_ID1][0])
+    destination_lat_long=str(-nodexy[node_ID2][1])+","+str(nodexy[node_ID2][0])
+    url="https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial&origins="+origin_lat_long+"&destinations="+destination_lat_long+"&key=AIzaSyBw112JGqCiFB4jF_1Sc0iH7mXCIzRXlI8"
+    z=requests.get(url)
+    travel_time=z.json()['rows'][0]['elements'][0]['duration']['value']/60
+    return travel_time
