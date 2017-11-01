@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 import matplotlib as plt
 import networkx as nx
-
 import math
 import random
-
+import requests
+import time
 def read_network(path):
     '''
         input: network.dat
@@ -164,9 +164,6 @@ def cluster_highlight(linklist):
 # In[ ]:
 
 def convert_travelerdat(input_path,output_path):
-    
-    input_path='input'
-    output_path='input'
     file=open(input_path+'/traveler.dat')
     num_lines = sum(1 for line in file)
     file.close()
@@ -174,7 +171,10 @@ def convert_travelerdat(input_path,output_path):
     linecounter=0
     j=0
     traveler_flag=0
+    print('Extract information from traveler.dat')
     for line in file:
+        if linecounter%500==0: 
+                print(linecounter,time.time())
         line_temp=line.split()
         if linecounter==0:
             num_traveler=int(line_temp[0])
@@ -182,7 +182,7 @@ def convert_travelerdat(input_path,output_path):
             traveler_flag=1
             traveler_info=pd.DataFrame(index=range(num_lines-num_traveler-3),columns=('person_id','num_trips','value_of_time','trip_counter',
                                     'ActivityTime','tripmode','orig_purpose','dest_purpose', 
-                                     'orig_maz',  'orig_taz','dest_maz','dest_taz',
+                                     'orig_maz',  'orig_taz','dest_maz','dest_taz','driver_passenger_flag','joint_trip_flag','park&ride_flag',
                                     'starttimeinterval','starttime'))
         elif linecounter!=1 and linecounter!=2:
             if traveler_flag==1:
@@ -195,9 +195,9 @@ def convert_travelerdat(input_path,output_path):
                 trip_counter=1
                 traveler_flag=0
             else: 
-                trip_temp=[line_temp[i] for i in [1,2,3,4,5,6,7,8,12,13]]
+                #trip_temp=line_temp[1:13] #[line_temp[i] for i in [1,2,3,4,5,6,7,8,9,10,11,12,13,15]]
                 trip_info=[traveler_id,num_trips,value_of_time,trip_counter]
-                trip_info.extend(trip_temp)
+                trip_info.extend(line_temp[1:14])
                 traveler_info.loc[j] = trip_info
                 j+=1
                 if trip_counter==num_trips:
@@ -205,11 +205,13 @@ def convert_travelerdat(input_path,output_path):
                 trip_counter+=1
         linecounter=linecounter+1
     #Add the household information to the dataframe
+    print('Add household information')
     traveler_info.to_csv('input/traveler_info.dat',index=False)
     traveler_info=pd.read_csv('input/traveler_info.dat')
     personData=pd.read_csv('input/personData_1.csv')
     hh_temp=personData[['person_id','hh_id']]
     traveler_infos=pd.merge(traveler_info,hh_temp,how='left',on=['person_id'])
+    print('Generate the origin and destination node for each trip')
     #read the origin, destination information and add them to the traveler_trip
     origins, destinations=read_origin_destion(input_path+'/origin.dat',input_path+'/destination.dat')
     traveler_trips=add_od_node_all_travelers(traveler_infos)
@@ -235,7 +237,6 @@ def find_orign_destination_node(origin_zone,destination_zone):
     #Find the destination node where the trip ends
     num_des_candidates=len(destinations[destinations['zone_id']==destination_zone].index)
     destination_node=destinations[destinations['zone_id']==destination_zone].iloc[random.randint(0, num_des_candidates-1)]['nodes']
-    
     return origin_node,destination_node
 
 def add_od_node_all_travelers(traveler_trips):
@@ -266,8 +267,18 @@ def c_link_xy (links):
         link_xy.append([(nodexy[link_detail[link_ID1,0]][0]+nodexy[link_detail[link_ID1,1]][0])/2,
                        (nodexy[link_detail[link_ID1,0]][1]+nodexy[link_detail[link_ID1,1]][1])/2])
     return 
+
 def distance_between_nodes(node_ID1,node_ID2,node_xy):
     lattomile=69
     longtomile=53
     distance=math.sqrt(((node_xy[node_ID1][0]-node_xy[node_ID2][0])*lattomile)**2+((node_xy[node_ID1][1]-node_xy[node_ID2][1])*longtomile)**2)
+    if node_ID1==node_ID2: 
+        distance=0.01
     return distance
+def travel_time_between_nodes(node_ID1,node_ID2,node_xy):
+    origin_lat_long=str(-nodexy[node_ID1][1])+","+str(nodexy[node_ID1][0])
+    destination_lat_long=str(-nodexy[node_ID2][1])+","+str(nodexy[node_ID2][0])
+    url="https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial&origins="+origin_lat_long+"&destinations="+destination_lat_long+"&key=AIzaSyBw112JGqCiFB4jF_1Sc0iH7mXCIzRXlI8"
+    z=requests.get(url)
+    travel_time=z.json()['rows'][0]['elements'][0]['duration']['value']/60
+    return travel_time
