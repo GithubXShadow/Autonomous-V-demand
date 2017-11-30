@@ -130,7 +130,8 @@ def read_origin_destion(origin_path,destination_path):
             destination_nodes.append([int(line_temp[0]),int(line_temp[i+2])])
     destinations=pd.DataFrame(destination_nodes,columns=['zone_id','nodes'])
     origins=pd.DataFrame(origin_nodes,columns=['zone_id','nodes'])
-    return origins, destinations
+    origins_links=pd.DataFrame(origin_links,columns=['zone_id','u_node','d_node'])
+    return origins, destinations,origins_links
 
 
 # In[ ]:
