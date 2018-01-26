@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioUserFile ProjectCreator="Intel Fortran" Keyword="Console Application" Version="9.10" ProjectIdGuid="{DCFB1C74-BB77-40AE-B6A6-8077C89CBAD3}">
+	<Configurations>
+		<Configuration Name="Debug|Win32" WorkingDirectory="D:\Networks\LISmall16ER75-05-1-0.5 (Third Demand)"/>
+		<Configuration Name="Release|Win32"/>
+		<Configuration Name="Debug|x64" WorkingDirectory="D:\Alex\722dtest\new abm\TourProcessor\Component1\Input"/>
+		<Configuration Name="Release|x64" WorkingDirectory="D:\Alex\Incorporate Dll into Tour Processor\15-01-01 Tour Processor sorting travelers\pb component 1 test\Input"/></Configurations></VisualStudioUserFile>

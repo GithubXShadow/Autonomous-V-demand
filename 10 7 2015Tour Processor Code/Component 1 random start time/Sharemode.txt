@@ -1,0 +1,99 @@
+open(file='indivTripData_1.csv',unit=1)
+open(file='indivTourData_1.csv',unit=2)
+read(1,*)       
+error=1
+startindex=1
+read(2,*)
+m=1
+do while(error.ne.-1)
+        ! Read the tour data until the end of form
+        read(1,'(a)',iostat=error) Line
+        if (error.ne.-1)then 
+        ! one by one matched
+            read(Line,*,iostat=error) hh_id	person_id,person_num,person_type,tour_id,tour_category,tour_purpose,orig_maz,orig_walk_segment,dest_maz,dest_walk_segment,depart_period,arrive_period,tour_mode,atWork_freq,num_ob_stops,num_ib_stops,util_1,util_2,util_3,util_4,util_5,util_6,util_7,util_8,util_9,util_10,util_11,util_12,util_13,util_14,util_15,util_16,util_17,util_18,util_19,util_20,util_21,util_22,util_23,util_24,util_25,util_26,prob_1,prob_2,prob_3,prob_4,prob_5,prob_6,prob_7,prob_8,prob_9,prob_10,prob_11,prob_12,prob_13,prob_14,prob_15,prob_16,prob_17,prob_18,prob_19,prob_20,prob_21,prob_22,prob_23,prob_24,prob_25,prob_26
+            !Initialize setting for each tour
+            !Define the size of the tour
+            TravellerNumTrips=num_ob_stops+num_ib_stops
+            !Initial people as possible driver and passenger
+            possibledriver=1
+            possiblePassenger=1
+            !Initial the travel vectors for Driver
+             allocate (LastDriverDestinationMAZ(TravellerNumTrips))
+			         LastDriverDestinationMAZ(:)=0
+		     allocate (LastDriverDestinationPurpose(TravellerNumTrips))
+			         LastDriverDestinationPurpose(:)=" "
+		     allocate (LastDriverOriginalMAZ(TravellerNumTrips))
+			         LastDriverOriginalMAZ(:)=0
+		     allocate (LastDriverOriginalPurpose(TravellerNumTrips))
+			         LastDriverOriginalPurpose(:)=" "
+			         
+			 !Initial the travel vector for passenger
+			 allocate (LastPassengerDestinationMAZ(TravellerNumTrips))
+			         LastPassengerDestinationMAZ(:)=0
+		     allocate (LastPassengerDestinationPurpose(TravellerNumTrips))
+			         LastPassengerDestinationPurpose(:)=" "
+		     allocate (LastPassengerOriginalMAZ(TravellerNumTrips))
+			         LastPassengerOriginalMAZ(:)=0
+		     allocate (LastPassengerOriginalPurpose(TravellerNumTrips))
+			         LastPassengerOriginalPurpose(:)=" "
+		     jj=1
+		     kk=1
+		     
+		     cartrip=0
+		     !Check for all trips within the tour
+		     !Read here
+			 
+             do i=startindex,startindex+TravellerNumTrips-1
+				read(2,'(a)',iostat=error1) Line
+				read(
+                !Create Travel vectors for driver
+		        if (trip_mode.gt.0.and.trip_mode.lt.7) 
+		            LastDriverDestinationTAZ(jj)=dest_maz
+				    LastDriverDesinationPurpose(jj)=dest_purpose
+                    LastDriverOriginalMAZ(jj)=orig_maz
+				    LastDriverOriginalPurpose(jj)=orig_purpose
+				    cartrip=1
+				    jj=jj+1
+		        endif
+		        !Create travel vectors for passenger
+		        if (trip_mode.gt.0.and.trip_mode.lt.3)
+		            LastPassengerDestination<AZ(kk)=dest_maz
+				    LastPassengerDesinationPurpose(kk)=dest_purpose
+                    LastPassengerOriginalMAZ(kk)=orig_maz
+				    LastPassengerOriginalPurpose(kk)=orig_purpose
+				    !Check is this tour has car
+				    
+				    kk=kk+1
+				endif 
+		     enddo 
+		     k=1
+		     n=1
+		     if (cartrip.eq.1)
+	            do while(LastDriverDestinationMAZ(k+1).ne.0)
+			        if (LastDriverDestinationMAZ(k).ne.LastDriverOriginalMAZ(k+1).and.LastDriverDesinationPurpose(k).ne.LastDriverOriginalPurpose(k+1)
+				        Possible_Driver=0
+			        endif
+		            k=k+1
+		        enddo
+		        do while(LastPassengerDestinationMAZ(k+1).ne.0)
+		            if (LastPassengerDestinationMAZ(k).ne.LastPassengerOriginalMAZ(k+1).and.LastPassengerDesinationPurpose(k).ne.LastPassengerOriginalPurpose(k+1)
+				        Possible_Passenger=0
+			        endif
+			    enddo
+			 endif      
+		endif
+		startindex=startindex+TravellerNumTrips
+		if (Possible_Driver.eq.1.and.Possible_Passenger.eq.1)
+		!look for the seed
+		
+		    depend on the
+		    driver(m)=(rand(0))
+		    
+		elseif (Possible_Driver.eq.0.and.Possible_Passenger.eq.0)
+		    !report error
+		else
+		    driver(m)=Possible_Driver
+		   
+		endif
+		
+enddo

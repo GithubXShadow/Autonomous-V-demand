@@ -1,0 +1,36 @@
+          47     9776971
+           2           0
+         personTypes         0         2         2
+  personTypeNumTrips         0         2         4
+     numParticipants         0
+        participants         0
+       numJointTrips         0         0         0
+   numCompletedTrips         0         2         4
+         orgActTypes         0         0         1         0         1         0         5
+         dstActTypes         0         1         0         1         0         5         0
+          jointTrips         0         0         0         0         0         0         0
+tripPlannedDeparture         0       433       729       261       779       996      1102
+     tripPlannedTime         0         7        25         4         7         1         1
+tripSimulatedDepartu         0       433       729       261       779       996      1102
+   tripSimulatedTime         0         6        60         1         1         1         1
+    tripExpectedTime         0         6        60         1         1         1         1
+tripAdjustedDepartur         0         0         0         0         0         0         0
+        diffPlan,Sim         0        -1        35        -3        -6         0         0
+          47     9776971
+           2           0
+         personTypes         0         2         2
+  personTypeNumTrips         0         2         4
+     numParticipants         0
+        participants         0
+       numJointTrips         0         0         0
+   numCompletedTrips         0         2         4
+         orgActTypes         0         0         1         0         1         0         5
+         dstActTypes         0         1         0         1         0         5         0
+          jointTrips         0         0         0         0         0         0         0
+tripPlannedDeparture         0       433       729       261       779       996      1102
+     tripPlannedTime         0         7        25         4         7         1         1
+tripSimulatedDepartu         0       433       729       261       779       996      1102
+   tripSimulatedTime         0         6        60         1         1         1         1
+    tripExpectedTime         0         6        60         1         1         1         1
+tripAdjustedDepartur         0       433       729       261       779       996      1102
+        diffPlan,Sim         0        -1        35        -3        -6         0         0
