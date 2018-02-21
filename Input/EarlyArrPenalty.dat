@@ -1,0 +1,12 @@
+	Full-time-worker	Part-time-worker	University-student	Non-worker	Retired	Student-of-driving-age	Student-of-non-driving-age	Child-too-young-for-school
+Home	0.00	0.00	0.00	0.00	0.00	0.00	0.00	0.00
+Work	0.20	0.20	0.20	0.20	0.20	0.20	0.00	0.00
+University	0.20	0.20	0.20	0.20	0.20	0.00	0.00	0.00
+School	0.00	0.00	0.00	0.00	0.00	0.20	0.20	0.20
+Escort	0.20	0.20	0.20	0.20	0.20	0.20	0.20	0.20
+Shop	0.01	0.01	0.01	0.01	0.01	0.01	0.01	0.01
+Maintenance	0.01	0.01	0.01	0.01	0.01	0.01	0.01	0.01
+EatingOut	0.01	0.01	0.01	0.01	0.01	0.01	0.01	0.01
+Visiting	0.01	0.01	0.01	0.01	0.01	0.01	0.01	0.01
+Discretionary	0.01	0.01	0.01	0.01	0.01	0.01	0.01	0.01
+WorkBased	0.20	0.20	0.20	0.20	0.20	0.20	0.00	0.00
