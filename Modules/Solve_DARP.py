@@ -14,17 +14,18 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
                     expected_arrival_time,early_penalty,late_penalty,
                     early_penalty_threshold,late_penalty_threshold,R,Vehicular_Skim,
                     share_ride_factor,output_flag,run_mode,
-                    num_cav,time_window_flag,single_model_runtime):
+                    num_cav,cav_use_mode,time_window_flag,single_model_runtime):
     '''
     This function is the mixed integer programing for the dial and ride problem. Serveral run mode are defined
     run_mode: 
     0 basic formulation soft time window
     1 mode choice extension
-    
-    
+    cav_use_mode:
+        0 if all num_cav must be used
+        1 if num_cav is the upper limite
     '''
     m1=Model("AVSchedule")
-    x=m1.addVars(2*hh_num_trips+2,2*hh_num_trips+2,vtype=GRB.BINARY,name="x")
+    x=m1.addVars(2*hh_num_trips+2,2*hh_num_trips+2,num_cav,vtype=GRB.BINARY,name="x")
     T=m1.addVars(2*hh_num_trips+2,name="T") #T represent the expected arrivial time at a node
     S=m1.addVars(2*hh_num_trips+2,name="S")
    
@@ -35,28 +36,34 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     #Basic deliver and pickup constraints
 #     m1.addConstrs((x.sum(i,'*')==1 for i in range(1,hh_num_trips+1)),"forcepickupalldemand")
 #     m1.addConstrs((x.sum('*',i)==x[i,i+hh_num_trips] for i in range(1,hh_num_trips+1)),'bansharedride')
-    if num_cav==1:
-        m1.addConstrs((x.sum(i,'*')==num_cav for i in [0]),"FromDepot2")
-        m1.addConstrs((x.sum('*',i)==num_cav for i in [2*hh_num_trips+1]),"ToDepot3") 
+    # if num_cav==1:
+    if cav_use_mode==0:
+        m1.addConstrs((x.sum(i,'*',ve)==1 for i in [0] for ve in range(num_cav)),"FromDepot2")
+        m1.addConstrs((x.sum('*',i,ve)==1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3") 
     else:
-        m1.addConstrs((x.sum(i,'*')==num_cav for i in [0]),"FromDepotlessthannumpoav2")
-        m1.addConstrs((x.sum('*',i)==num_cav for i in [2*hh_num_trips+1]),"ToDepotlessthannumpoav3") 
-        m1.addConstrs((x.sum(i,'*')>=1 for i in [0]),"FromDepot2")
-        m1.addConstrs((x.sum('*',i)>=1 for i in [2*hh_num_trips+1]),"ToDepot3") 
+        m1.addConstrs((x.sum(i,'*',ve)<=1 for i in [0] for ve in range(num_cav)),"FromDepot2")
+        m1.addConstrs((x.sum('*',i,ve)<=1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3")
+    m1.addConstrs((x.sum(i,'*',"*")>=1 for i in [0] ),"FromDepot2")
+    m1.addConstrs((x.sum('*',i,"*")>=1 for i in [2*hh_num_trips+1] ),"ToDepot3") 
+    # else:
+    #     m1.addConstrs((x.sum(i,'*')==num_cav for i in [0]),"FromDepotlessthannumpoav2")
+    #     m1.addConstrs((x.sum('*',i)==num_cav for i in [2*hh_num_trips+1]),"ToDepotlessthannumpoav3") 
+        # m1.addConstrs((x.sum(i,'*')>=1 for i in [0]),"FromDepot2")
+        # m1.addConstrs((x.sum('*',i)>=1 for i in [2*hh_num_trips+1]),"ToDepot3") 
     
-    m1.addConstrs((x.sum(i,"*")==x.sum("*",i+hh_num_trips) for i in range(1,hh_num_trips+1)),"DemandbeDelivered11")
-    m1.addConstrs((x.sum(i,"*")<=1 for i in range(1,2*hh_num_trips+1)),"PickupOnce12")
-    m1.addConstrs((x.sum("*",j)<=1 for j in range(1,2*hh_num_trips+1)),"DeliverOnce13")
-    m1.addConstrs((x.sum("*",i)==x.sum(i,"*") for i in range(1,2*hh_num_trips+1)),"FlowConvervative14")
-    m1.addConstrs((x[i,i]==0 for i in range(2*hh_num_trips+2)),"NoSamePointCircleVisit")
+    m1.addConstrs((x.sum(i,"*",ve)==x.sum("*",i+hh_num_trips,ve) for i in range(1,hh_num_trips+1) for ve in range(num_cav)),"DemandbeDelivered11")
+    m1.addConstrs((x.sum(i,"*","*")<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
+    m1.addConstrs((x.sum("*",j,"*")<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
+    m1.addConstrs((x.sum("*",i,ve)==x.sum(i,"*",ve) for i in range(1,2*hh_num_trips+1) for ve in range(num_cav)),"FlowConvervative14")
+    m1.addConstrs((x[i,i,ve]==0 for i in range(2*hh_num_trips+2) for ve in range(num_cav)),"NoSamePointCircleVisit")
     # ###################################
     #Time constratins
     if time_window_flag==1: #exact arrvial time
         m1.addConstrs((T[i]==expected_arrival_time[i] for i in range(1,2*hh_num_trips+2)),'ExactStartTime')
 #     if force_serve_factor==1: #Force visit all nodes
 #         m1.addConstrs((x.sum(i,"*")==1 for i in range(2*hh_num_trips+1)),"allnodemustbeserved")
-    m1.addConstrs((T[j]-T[i]-B*x[i,j]>=TT[i,j]-B for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2)),"precedencet15")
-    m1.addConstrs((T[i+hh_num_trips]-T[i]-B*x.sum(i,"*")>=(TT[i,i+hh_num_trips]-B) for i in range(1,hh_num_trips+1)),"deliverafterpickup16")
+    m1.addConstrs((T[j]-T[i]-B*x[i,j,ve]>=TT[i,j]-B for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) for ve in range(num_cav)),"precedencet15")
+    m1.addConstrs((T[i+hh_num_trips]-T[i]-B*x.sum(i,"*","*")>=(TT[i,i+hh_num_trips]-B) for i in range(1,hh_num_trips+1)),"deliverafterpickup16")
 
     m1.addConstrs((T[i+hh_num_trips]-T[i]<=share_ride_factor*TT[i,i+hh_num_trips] for i in range(1,hh_num_trips+1)),"triptimecannotexcceed1.5expectedtraveltime")
     
@@ -70,20 +77,21 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     # ####################################
     # Special Constraints for this problem
 
-    m1.addConstrs((T[j]-T[i+hh_num_trips]-B*(x.sum("*",i)+x.sum("*",j)-1)>=-B for i in range(1,hh_num_trips+1)
-                        for j in range(i+1,hh_num_trips+1)
+    m1.addConstrs((T[j]-T[i+hh_num_trips]-B*(x.sum("*",i,"*")+x.sum("*",j,"*")-1)>=-B 
+                        for i in range(1,hh_num_trips+1) for j in range(i+1,hh_num_trips+1)
                         if sorted_trips.iloc[i-1]['person_id']==sorted_trips.iloc[j-1]['person_id']),
                         'personal_sequence_consistent'
                  ) # For the same person, the sequence of activity can not be violated
     
-    m1.addConstrs((x[i,j]==0 for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) 
-                  if expected_arrival_time[j]-expected_arrival_time[i]<-30)
+    m1.addConstrs((x[i,j,ve]==0 
+                for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) for ve in range(num_cav)
+                if expected_arrival_time[j]-expected_arrival_time[i]<-30)
                  ,'TripIearlerthanTripj') #
     # #####################################
     # Objective Function
-    obj1=sum(x.sum(i,'*')*R[i] for i in range(hh_num_trips+1))
+    obj1=sum(x.sum(i,'*',"*")*R[i] for i in range(hh_num_trips+1))
     obj2=S.sum()
-    obj3=sum(x[i,j]*C[i,j] for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2))
+    obj3=sum(x.sum(i,j,"*")*C[i,j] for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2))
     if run_mode==0 or run_mode==2:
         m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
     elif run_mode==1:
@@ -94,25 +102,25 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     
     ###############################################################
     #warm start with heuristic
-    for i in range(2*hh_num_trips+2):
-        for j in range(2*hh_num_trips+2):
-            x[i,j].start=0
-    
-    x[0,1].start=1
-    x[1,1+hh_num_trips].start=1
+    # for i in range(2*hh_num_trips+2):
+    #     for j in range(2*hh_num_trips+2):
+    #         x[i,j].start=0
+    x["*","*","*"]=0
+    x[0,1,0].start=1
+    x[1,1+hh_num_trips,0].start=1
     last_node=1+hh_num_trips
     for i in range(2*hh_num_trips+2):
         T[i].start=expected_arrival_time[i]
         S[i].start=0
     for i in range(2,1+hh_num_trips):
         if expected_arrival_time[last_node]+TT[last_node,i]<expected_arrival_time[i]:
-            x[last_node,i].start=1
-            x[i,i+hh_num_trips].start=1
+            x[last_node,i,0].start=1
+            x[i,i+hh_num_trips,0].start=1
             last_node=i+hh_num_trips
         else: 
-            x[last_node,i].start=0
-            x[i,i+hh_num_trips].start=0
-    x[last_node,2*hh_num_trips+1].start=1
+            x[last_node,i,0].start=0
+            x[i,i+hh_num_trips,0].start=0
+    x[last_node,2*hh_num_trips+1,0].start=1
 #     print('The heuristic solution: ',obj1.getValue(),obj2.getValue(),obj3.getValue())
     
     #Check if the warm start is an feasible solution
@@ -144,12 +152,11 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     if output_flag>0:
         print('################################\nThe total reward is',obj1.getValue(),'\nThe delay cost is ',obj2.getValue(),'\nThe total travel cost is ', obj3.getValue())
         print(S[2*hh_num_trips].x)
-        
     return m1,x,T
 
 
 
-def break_route_to_seg(route_info,superzone_map):
+def break_route_to_seg(route_info,superzone_map,vehicle_id):
     '''
     This function break the route of an av into segements for DYNASMART depends on the travelers. 
     The function is called by extract_route_from_model_solution
@@ -173,7 +180,8 @@ def break_route_to_seg(route_info,superzone_map):
         i=i+1
     route_info['seg_index']=seg_index
     route_info['intrasuperzone_flag']=intrasuperzone_flag
-    route_info['veh_seg_index']=route_info[['hh_id','seg_index']].apply(lambda x: veh_seg_index_creator(x), axis=1)
+    route_info['hh_vehicle_id']=vehicle_id
+    route_info['veh_seg_index']=route_info.hh_id.astype(str)+"_"+route_info.seg_index.astype(str)+"_"+str(vehicle_id) #route_info[['hh_id','seg_index']].apply(lambda x: veh_seg_index_creator(x), axis=1)
     return route_info
 
 def check_intrasuperzone(orig_taz,dest_taz,superzone_map):
@@ -198,8 +206,8 @@ def find_av_schedule_exact_method(target_hh_id,traveler_trips,Vehicular_Skim,sup
 #     R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk)
     R=prd.estimate_trip_reward(hh_num_trips,sorted_trip,Vehicular_Skim,reward_mode,superzone_map)
     m1,x,T=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
-                            R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,num_cav,time_window_flag,single_model_runtime)
-    route_info=extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map)
+                            R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
+    route_info=extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav)
     return route_info
 
 def get_route_info_allhh(traveler_trips,output_flag):
@@ -222,7 +230,7 @@ def get_route_info_allhh(traveler_trips,output_flag):
             if not route_info.empty:
                 route_infos=route_infos.append(route_info)
     return  route_infos
-def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map):
+def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav):
     '''
     This function extract route information from the MIP solution and convert the x, T in to trip list.
     '''
@@ -230,77 +238,83 @@ def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_n
     #route_dic store the optimiztion model solution as a dictionary. The keys are the upstream node index and the answer is
     #the corresponding downstream node index
     hh_id=sorted_trips['hh_id'].iloc[0]
-    potential_next_node=set(range(1,2*hh_num_trips+1))
-    route_node=[0]
-    travelers=[]
-    vot=[]
-    activity_time=[]
-    start_time=[]
-    dest_expected_arrival_time=[]
-    origin_arrival_time=[]
-    dest_arrival_time=[]
-    orig_node=[]
-    dest_node=[]
-    while potential_next_node != set():
-        for node in potential_next_node: 
-            if x[route_node[-1],node].x>0.91:
-                if (route_node[-1]==0): #Initialize the traveler list when it is the depot
-                    traveler_set=set()
-                    travelers.extend([0])
-                    vot.extend([0.01])
-                    activity_time.extend([0])
-                elif (route_node[-1]<=hh_num_trips): # If the trip starts from an origin node
-#                     print(traveler_set,sorted_trips.iloc[route_node[-1]-1]['person_id'])
-                    traveler_set.add(sorted_trips.iloc[route_node[-1]-1]['person_id'])
-                    travelers.extend([sorted_trips.iloc[route_node[-1]-1]['person_id']])
-#                     print(route_node[-1],node,sorted_trips.iloc[route_node[-1]-1]['person_id'],traveler_set)
-                else: #if the trip starts from a destination node
-                    traveler_set.remove(sorted_trips.iloc[route_node[-1]-1-hh_num_trips]['person_id'])
-                    if traveler_set ==set():
+    
+    
+    route_info=pd.DataFrame()
+    for ve in range(num_cav):
+        route_node=[0]
+        travelers=[]
+        vot=[]
+        activity_time=[]
+        start_time=[]
+        dest_expected_arrival_time=[]
+        origin_arrival_time=[]
+        dest_arrival_time=[]
+        orig_node=[]
+        dest_node=[]
+        potential_next_node=set(range(1,2*hh_num_trips+1))
+        while potential_next_node != set():
+            for node in potential_next_node: 
+                if x[route_node[-1],node,ve].x>0.91:
+                    if (route_node[-1]==0): #Initialize the traveler list when it is the depot
+                        traveler_set=set()
                         travelers.extend([0])
                         vot.extend([0.01])
                         activity_time.extend([0])
-                    else:
-                        travelers.extend([list(traveler_set)[0]])
-#                     print(route_node[-1],node,sorted_trips.iloc[route_node[-1]-1-hh_num_trips]['person_id'],traveler_set)
-#                 print(traveler_set,travelers)
-    
-                if traveler_set !=set():
-                    vot.extend([sorted_trips[sorted_trips.person_id==travelers[-1]]['value_of_time'].iloc[0]])
-                    activity_time.extend([max(0,expected_leave_time[node]-expected_arrival_time[node])])
-#                     vot.extend([sorted_trips.iloc[route_node[-1]-1]['value_of_time']])
-                start_time.extend([expected_leave_time[route_node[-1]]])
-                origin_arrival_time.extend([T[route_node[-1]].x])
-                dest_arrival_time.extend([T[node].x])
-                dest_expected_arrival_time.extend([expected_arrival_time[node]])
-                orig_node.extend([sorted_trips])
-                route_node.extend([node])
-                break
-        if route_node[-1] in potential_next_node:
-            potential_next_node.remove(route_node[-1])
-        else:
-            potential_next_node=set()
-            # print('*******************************')
-           
-            # print(sum([x[i,j].x for i in potential_next_node for j in range(1,2*hh_num_trips+1)]))
-            # print('*******************************')
-    route=[visit_candidate_zone[x] for x in route_node]
-    route_info=pd.DataFrame({'orig_zone':route[1:-1],'dest_zone':route[2:],'person_id':travelers[1:],
-                             'orig_node_index':route_node[1:-1],'dest_node_index':route_node[2:],
-                             'origin_arrival_time':origin_arrival_time[1:],'dest_arrival_time':dest_arrival_time[1:],
-                             'dest_expected_arrival_time':dest_expected_arrival_time[1:],'value_of_time':vot[1:],'start_time':start_time[1:],'Activity_Time':activity_time[1:],
-                             'hh_id':np.ones(len(route[1:-1]))*hh_id},
-                            columns=['orig_zone','dest_zone','orig_node_index','dest_node_index',
-                                     'person_id','origin_arrival_time','dest_arrival_time','dest_expected_arrival_time','value_of_time'
-                                     ,'start_time','Activity_Time','hh_id'])
-    # Drop the trip between a person's current destination and next trips's origin, as those are the same node
-    route_info=route_info.loc[((route_info.orig_node_index-route_info.dest_node_index!=hh_num_trips-1)
-                               | (route_info.orig_zone!=route_info.dest_zone)
-                              |(route_info.start_time!=route_info.dest_expected_arrival_time)) ] 
-#     sorted_trips.iloc[max(i for i in [route_info.orig_node_index,route_info.orig_node_index-hh_num_trips] if i >0)].person_id !=
-# sorted_trips.iloc[max(i for i in [route_info.dest_node_index,route_info.dest_node_index-hh_num_trips] if i >0)].person_id
-    if not route_info.empty:
-        route_info=break_route_to_seg(route_info,superzone_map)
+                    elif (route_node[-1]<=hh_num_trips): # If the trip starts from an origin node
+    #                     print(traveler_set,sorted_trips.iloc[route_node[-1]-1]['person_id'])
+                        traveler_set.add(sorted_trips.iloc[route_node[-1]-1]['person_id'])
+                        travelers.extend([sorted_trips.iloc[route_node[-1]-1]['person_id']])
+    #                     print(route_node[-1],node,sorted_trips.iloc[route_node[-1]-1]['person_id'],traveler_set)
+                    else: #if the trip starts from a destination node
+                        traveler_set.remove(sorted_trips.iloc[route_node[-1]-1-hh_num_trips]['person_id'])
+                        if traveler_set ==set():
+                            travelers.extend([0])
+                            vot.extend([0.01])
+                            activity_time.extend([0])
+                        else:
+                            travelers.extend([list(traveler_set)[0]])
+    #                     print(route_node[-1],node,sorted_trips.iloc[route_node[-1]-1-hh_num_trips]['person_id'],traveler_set)
+    #                 print(traveler_set,travelers)
+        
+                    if traveler_set !=set():
+                        vot.extend([sorted_trips[sorted_trips.person_id==travelers[-1]]['value_of_time'].iloc[0]])
+                        activity_time.extend([max(0,expected_leave_time[node]-expected_arrival_time[node])])
+    #                     vot.extend([sorted_trips.iloc[route_node[-1]-1]['value_of_time']])
+                    start_time.extend([expected_leave_time[route_node[-1]]])
+                    origin_arrival_time.extend([T[route_node[-1]].x])
+                    dest_arrival_time.extend([T[node].x])
+                    dest_expected_arrival_time.extend([expected_arrival_time[node]])
+                    orig_node.extend([sorted_trips])
+                    route_node.extend([node])
+                    break
+            if route_node[-1] in potential_next_node:
+                potential_next_node.remove(route_node[-1])
+            else:
+                potential_next_node=set()
+                # print('*******************************')
+               
+                # print(sum([x[i,j].x for i in potential_next_node for j in range(1,2*hh_num_trips+1)]))
+                # print('*******************************')
+        route=[visit_candidate_zone[x] for x in route_node]
+        route_info_temp=pd.DataFrame({'orig_zone':route[1:-1],'dest_zone':route[2:],'person_id':travelers[1:],
+                                 'orig_node_index':route_node[1:-1],'dest_node_index':route_node[2:],
+                                 'origin_arrival_time':origin_arrival_time[1:],'dest_arrival_time':dest_arrival_time[1:],
+                                 'dest_expected_arrival_time':dest_expected_arrival_time[1:],'value_of_time':vot[1:],
+                                 'start_time':start_time[1:],'Activity_Time':activity_time[1:],
+                                 'hh_id':np.ones(len(route[1:-1]))*hh_id},
+                                columns=['orig_zone','dest_zone','orig_node_index','dest_node_index',
+                                         'person_id','origin_arrival_time','dest_arrival_time','dest_expected_arrival_time','value_of_time'
+                                         ,'start_time','Activity_Time','hh_id'])
+        # Drop the trip between a person's current destination and next trips's origin, as those are the same node
+        route_info_temp=route_info_temp.loc[((route_info_temp.orig_node_index-route_info_temp.dest_node_index!=hh_num_trips-1)
+                                   | (route_info_temp.orig_zone!=route_info_temp.dest_zone)
+                                  |(route_info_temp.start_time!=route_info_temp.dest_expected_arrival_time)) ] 
+#     sorted_trips.iloc[max(i for i in [route_info_temp.orig_node_index,route_info_temp.orig_node_index-hh_num_trips] if i >0)].person_id !=
+# sorted_trips.iloc[max(i for i in [route_info_temp.dest_node_index,route_info_temp.dest_node_index-hh_num_trips] if i >0)].person_id
+        if not route_info_temp.empty:
+            route_info_temp=break_route_to_seg(route_info_temp,superzone_map,ve)
+        route_info=route_info.append(route_info_temp)
     
     return route_info
 
@@ -347,7 +361,7 @@ def flatten(sub_sorted_trips):
         return [a for i in sub_sorted_trips for a in flatten(i)]
     
 def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,min_length,max_length,
-                                    reward_mode,drivingcost_per_mile,share_ride_factor,output_flag,run_mode,num_cav,time_window_flag,single_model_runtime):
+                                    reward_mode,drivingcost_per_mile,share_ride_factor,output_flag,run_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime):
 #     sub_sorted_trips=[item for sublist in schedule_partition(sorted_trips,Vehicular_Skim,min_length,max_length) for item in sublist]
     sub_sorted_trips=flatten(schedule_partition(sorted_trips,Vehicular_Skim,min_length,max_length,superzone_map))
     route_info=pd.DataFrame()
@@ -363,10 +377,10 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Sk
         print(R)
         print('start sovling problem at ',datetime.datetime.now())
         m1,x,T=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sub_sorted_trip,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
-                                R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,num_cav,time_window_flag,single_model_runtime)
+                                R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
         
         print('finish solving problem at ',datetime.datetime.now())
-        sub_route_info=extract_route_from_model_solution(x,T,sub_sorted_trip,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map)
+        sub_route_info=extract_route_from_model_solution(x,T,sub_sorted_trip,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav)
         total_tailing_sub_trips_length=len(sorted_trips)-total_previous_sub_trips_length-len(sub_sorted_trip)
         sub_route_info['orig_node_index']=sub_route_info.orig_node_index.apply(lambda x: x+total_previous_sub_trips_length if x<=hh_num_trips else x+2*total_previous_sub_trips_length+total_tailing_sub_trips_length) 
         sub_route_info['dest_node_index']=sub_route_info.dest_node_index.apply(lambda x: x+total_previous_sub_trips_length if x<=hh_num_trips else x+2*total_previous_sub_trips_length+total_tailing_sub_trips_length) 
@@ -383,4 +397,140 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Sk
     schedule_deviation.extend(T_sol-expected_arrival_time)
     return route_info, schedule_deviation
 ################################################
+# One vehicle DNRP
+# def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
+#                     expected_arrival_time,early_penalty,late_penalty,
+#                     early_penalty_threshold,late_penalty_threshold,R,Vehicular_Skim,
+#                     share_ride_factor,output_flag,run_mode,
+#                     num_cav,time_window_flag,single_model_runtime):
+#     '''
+#     This function is the mixed integer programing for the dial and ride problem. Serveral run mode are defined
+#     run_mode: 
+#     0 basic formulation soft time window
+#     1 mode choice extension
+    
+    
+#     '''
+#     m1=Model("AVSchedule")
+#     x=m1.addVars(2*hh_num_trips+2,2*hh_num_trips+2,vtype=GRB.BINARY,name="x")
+#     T=m1.addVars(2*hh_num_trips+2,name="T") #T represent the expected arrivial time at a node
+#     S=m1.addVars(2*hh_num_trips+2,name="S")
+   
+#     # B=traveler_trips[traveler_trips['hh_id']==household]['starttime'].max()-traveler_trips[traveler_trips['hh_id']==household]['starttime'].min()
+#     B=1440+Vehicular_Skim.Time.max()
+#     #Add constraints
+#     ###################################
+#     #Basic deliver and pickup constraints
+# #     m1.addConstrs((x.sum(i,'*')==1 for i in range(1,hh_num_trips+1)),"forcepickupalldemand")
+# #     m1.addConstrs((x.sum('*',i)==x[i,i+hh_num_trips] for i in range(1,hh_num_trips+1)),'bansharedride')
+#     if num_cav==1:
+#         m1.addConstrs((x.sum(i,'*')==num_cav for i in [0]),"FromDepot2")
+#         m1.addConstrs((x.sum('*',i)==num_cav for i in [2*hh_num_trips+1]),"ToDepot3") 
+#     else:
+#         m1.addConstrs((x.sum(i,'*')==num_cav for i in [0]),"FromDepotlessthannumpoav2")
+#         m1.addConstrs((x.sum('*',i)==num_cav for i in [2*hh_num_trips+1]),"ToDepotlessthannumpoav3") 
+#         m1.addConstrs((x.sum(i,'*')>=1 for i in [0]),"FromDepot2")
+#         m1.addConstrs((x.sum('*',i)>=1 for i in [2*hh_num_trips+1]),"ToDepot3") 
+    
+#     m1.addConstrs((x.sum(i,"*")==x.sum("*",i+hh_num_trips) for i in range(1,hh_num_trips+1)),"DemandbeDelivered11")
+#     m1.addConstrs((x.sum(i,"*")<=1 for i in range(1,2*hh_num_trips+1)),"PickupOnce12")
+#     m1.addConstrs((x.sum("*",j)<=1 for j in range(1,2*hh_num_trips+1)),"DeliverOnce13")
+#     m1.addConstrs((x.sum("*",i)==x.sum(i,"*") for i in range(1,2*hh_num_trips+1)),"FlowConvervative14")
+#     m1.addConstrs((x[i,i]==0 for i in range(2*hh_num_trips+2)),"NoSamePointCircleVisit")
+#     # ###################################
+#     #Time constratins
+#     if time_window_flag==1: #exact arrvial time
+#         m1.addConstrs((T[i]==expected_arrival_time[i] for i in range(1,2*hh_num_trips+2)),'ExactStartTime')
+# #     if force_serve_factor==1: #Force visit all nodes
+# #         m1.addConstrs((x.sum(i,"*")==1 for i in range(2*hh_num_trips+1)),"allnodemustbeserved")
+#     m1.addConstrs((T[j]-T[i]-B*x[i,j]>=TT[i,j]-B for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2)),"precedencet15")
+#     m1.addConstrs((T[i+hh_num_trips]-T[i]-B*x.sum(i,"*")>=(TT[i,i+hh_num_trips]-B) for i in range(1,hh_num_trips+1)),"deliverafterpickup16")
 
+#     m1.addConstrs((T[i+hh_num_trips]-T[i]<=share_ride_factor*TT[i,i+hh_num_trips] for i in range(1,hh_num_trips+1)),"triptimecannotexcceed1.5expectedtraveltime")
+    
+#     # ####################################
+#     # #Late/Early Arrival penalty
+#     m1.addConstrs((S[i]>=early_penalty[i]*(expected_arrival_time[i]-T[i]) for i in range(2*hh_num_trips+2)),'earlyarrivalpenalty')
+#     m1.addConstrs((S[i]>=late_penalty[i]*(T[i]-expected_arrival_time[i]) for i in range(2*hh_num_trips+2)),'latearrivalpenalty')
+#     m1.addConstrs((S[i]>=2*early_penalty[i]*(expected_arrival_time[i]-T[i])-early_penalty[i]*early_penalty_threshold[i] for i in range(2*hh_num_trips+2)),'earlyarrivaloverthrespenalty')
+#     m1.addConstrs((S[i]>=2*late_penalty[i]*(T[i]-expected_arrival_time[i])-late_penalty[i]*late_penalty_threshold[i] for i in range(2*hh_num_trips+2)),'latearrivaloverthrespenalty')
+# #     m1.addConstrs((T[i]==expected_arrival_time[i] for i in [2*hh_num_trips]),'test123')
+#     # ####################################
+#     # Special Constraints for this problem
+
+#     m1.addConstrs((T[j]-T[i+hh_num_trips]-B*(x.sum("*",i)+x.sum("*",j)-1)>=-B for i in range(1,hh_num_trips+1)
+#                         for j in range(i+1,hh_num_trips+1)
+#                         if sorted_trips.iloc[i-1]['person_id']==sorted_trips.iloc[j-1]['person_id']),
+#                         'personal_sequence_consistent'
+#                  ) # For the same person, the sequence of activity can not be violated
+    
+#     m1.addConstrs((x[i,j]==0 for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) 
+#                   if expected_arrival_time[j]-expected_arrival_time[i]<-30)
+#                  ,'TripIearlerthanTripj') #
+#     # #####################################
+#     # Objective Function
+#     obj1=sum(x.sum(i,'*')*R[i] for i in range(hh_num_trips+1))
+#     obj2=S.sum()
+#     obj3=sum(x[i,j]*C[i,j] for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2))
+#     if run_mode==0 or run_mode==2:
+#         m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
+#     elif run_mode==1:
+#         m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
+
+#     m1.setParam(GRB.Param.OutputFlag,output_flag)
+#     m1.Params.TIME_LIMIT=single_model_runtime
+    
+#     ###############################################################
+#     #warm start with heuristic
+#     for i in range(2*hh_num_trips+2):
+#         for j in range(2*hh_num_trips+2):
+#             x[i,j].start=0
+    
+#     x[0,1].start=1
+#     x[1,1+hh_num_trips].start=1
+#     last_node=1+hh_num_trips
+#     for i in range(2*hh_num_trips+2):
+#         T[i].start=expected_arrival_time[i]
+#         S[i].start=0
+#     for i in range(2,1+hh_num_trips):
+#         if expected_arrival_time[last_node]+TT[last_node,i]<expected_arrival_time[i]:
+#             x[last_node,i].start=1
+#             x[i,i+hh_num_trips].start=1
+#             last_node=i+hh_num_trips
+#         else: 
+#             x[last_node,i].start=0
+#             x[i,i+hh_num_trips].start=0
+#     x[last_node,2*hh_num_trips+1].start=1
+# #     print('The heuristic solution: ',obj1.getValue(),obj2.getValue(),obj3.getValue())
+    
+#     #Check if the warm start is an feasible solution
+# #     x_temp=np.zeros((2*hh_num_trips+2,2*hh_num_trips+2))
+# #     x_temp[0,1]=1
+# #     x_temp[1,1+hh_num_trips]=1
+# #     last_node=1+hh_num_trips
+# #     T_temp=expected_arrival_time
+# #     for i in range(2,1+hh_num_trips):
+# #         if expected_arrival_time[last_node]+TT[last_node,i]<expected_arrival_time[i]:
+# #             x_temp[last_node,i]=1
+# #             x_temp[i,i+hh_num_trips]=1
+# #             last_node=i+hh_num_trips
+# #         else: 
+# #             x_temp[last_node,i]=0
+# #             x_temp[i,i+hh_num_trips]=0
+# #     for i in range(2*hh_num_trips+2):
+# #         for j in range(2*hh_num_trips+2):
+# #             if expected_arrival_time[j]-expected_arrival_time[i]-B*x_temp[i,j]<TT[i,j]-B:
+# #                 print('****************************')
+# #                 print(i,j,expected_arrival_time[j]-expected_arrival_time[i]-B*x_temp[i,j]>=TT[i,j]-B,x_temp[i,j])
+# #                 print('****************************')
+# #     for i in range(1,hh_num_trips+1):
+# #         for j in range(i+1,hh_num_trips+1):
+# #             if sorted_trips.iloc[i-1]['person_id']==sorted_trips.iloc[j-1]['person_id']:
+# #                 if 
+#     ###############################################################
+#     m1.optimize()
+#     if output_flag>0:
+#         print('################################\nThe total reward is',obj1.getValue(),'\nThe delay cost is ',obj2.getValue(),'\nThe total travel cost is ', obj3.getValue())
+#         print(S[2*hh_num_trips].x)
+        
+#     return m1,x,T
