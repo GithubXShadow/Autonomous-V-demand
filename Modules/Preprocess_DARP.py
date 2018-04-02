@@ -39,7 +39,7 @@ def get_travel_cost_matrix(sorted_trips,Vehicular_Skim,superzone_map,drivingcost
                 cost_temp=Vehicular_Skim.loc[ozone,superzone_map[dzone],correlated_skim_time_interval[i],1]['Cost'].item()
                 dist_temp=Vehicular_Skim.loc[ozone,superzone_map[dzone],correlated_skim_time_interval[i],1]['Dist'].item()
 
-                C[i,j]=time_temp*correlated_vot[i]+cost_temp #+dist_temp*drivingcost_per_mile
+                C[i,j]=time_temp*correlated_vot[i]+cost_temp+dist_temp*drivingcost_per_mile
                 TT[i,j]=time_temp
             
                 #The cost and travel time between the destination of ith trip and the origin of i+1th trip of same traveler is zero
@@ -184,11 +184,11 @@ def estimate_trip_reward(hh_num_trips,sorted_trips,Vehicular_Skim,reward_mode,su
 #     for index,row in sorted_trips.iterrows():
 #         R.extend([10*estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,Vehicular_Skim,1) if row.tripmode<=6 else 0 ])
 #         R.extend([10*estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,Vehicular_Skim,1)])
-    if reward_mode==0 :
+    if reward_mode==0: #Set reward to a large number so that all trips are served by cav
         R=[0]
         for index,row in sorted_trips.iterrows():
             R.extend([10*estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,Vehicular_Skim,2,superzone_map,drivingcost_per_mile)])
-    elif reward_mode==1:
+    elif reward_mode==1: #Set the reward to the utility of transit trips
         R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk)
     elif reward_mode==2:
         R=150*np.ones(1+hh_num_trips)

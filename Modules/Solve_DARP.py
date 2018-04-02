@@ -35,7 +35,8 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     ###################################
     #Basic deliver and pickup constraints
 #     m1.addConstrs((x.sum(i,'*')==1 for i in range(1,hh_num_trips+1)),"forcepickupalldemand")
-#     m1.addConstrs((x.sum('*',i)==x[i,i+hh_num_trips] for i in range(1,hh_num_trips+1)),'bansharedride')
+    if share_ride_factor<=1:
+        m1.addConstrs((x.sum('*',i,ve)==x[i,i+hh_num_trips,ve] for i in range(1,hh_num_trips+1) for ve in range(num_cav)),'bansharedride')
     # if num_cav==1:
     if cav_use_mode==0:
         m1.addConstrs((x.sum(i,'*',ve)==1 for i in [0] for ve in range(num_cav)),"FromDepot2")
@@ -43,8 +44,8 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     else:
         m1.addConstrs((x.sum(i,'*',ve)<=1 for i in [0] for ve in range(num_cav)),"FromDepot2")
         m1.addConstrs((x.sum('*',i,ve)<=1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3")
-    m1.addConstrs((x.sum(i,'*',"*")>=1 for i in [0] ),"FromDepot2")
-    m1.addConstrs((x.sum('*',i,"*")>=1 for i in [2*hh_num_trips+1] ),"ToDepot3") 
+    m1.addConstrs((x.sum(i,'*',"*")>=1 for i in [0] ),"oneFromDepot2")
+    m1.addConstrs((x.sum('*',i,"*")>=1 for i in [2*hh_num_trips+1] ),"oneToDepot3") 
     # else:
     #     m1.addConstrs((x.sum(i,'*')==num_cav for i in [0]),"FromDepotlessthannumpoav2")
     #     m1.addConstrs((x.sum('*',i)==num_cav for i in [2*hh_num_trips+1]),"ToDepotlessthannumpoav3") 
@@ -102,10 +103,12 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     
     ###############################################################
     #warm start with heuristic
-    # for i in range(2*hh_num_trips+2):
-    #     for j in range(2*hh_num_trips+2):
-    #         x[i,j].start=0
-    x["*","*","*"]=0
+    for i in range(2*hh_num_trips+2):
+        for j in range(2*hh_num_trips+2):
+            for ve in range(num_cav):
+                x[i,j,ve].start=0
+    # x["*","*","*"].start=0
+
     x[0,1,0].start=1
     x[1,1+hh_num_trips,0].start=1
     last_node=1+hh_num_trips
@@ -121,6 +124,7 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
             x[last_node,i,0].start=0
             x[i,i+hh_num_trips,0].start=0
     x[last_node,2*hh_num_trips+1,0].start=1
+
 #     print('The heuristic solution: ',obj1.getValue(),obj2.getValue(),obj3.getValue())
     
     #Check if the warm start is an feasible solution
@@ -152,8 +156,8 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     if output_flag>0:
         print('################################\nThe total reward is',obj1.getValue(),'\nThe delay cost is ',obj2.getValue(),'\nThe total travel cost is ', obj3.getValue())
         print(S[2*hh_num_trips].x)
-    return m1,x,T
-
+       
+    return m1,x,T,obj1.getValue(),obj2.getValue(),obj3.getValue()
 
 
 def break_route_to_seg(route_info,superzone_map,vehicle_id):
@@ -205,7 +209,7 @@ def find_av_schedule_exact_method(target_hh_id,traveler_trips,Vehicular_Skim,sup
     num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone=prd.extract_hh_information(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile)
 #     R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk)
     R=prd.estimate_trip_reward(hh_num_trips,sorted_trip,Vehicular_Skim,reward_mode,superzone_map)
-    m1,x,T=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
+    m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
                             R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
     route_info=extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav)
     return route_info
@@ -361,7 +365,8 @@ def flatten(sub_sorted_trips):
         return [a for i in sub_sorted_trips for a in flatten(i)]
     
 def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,min_length,max_length,
-                                    reward_mode,drivingcost_per_mile,share_ride_factor,output_flag,run_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime):
+                                    reward_mode,drivingcost_per_mile,share_ride_factor,output_flag,run_mode,num_cav,
+                                    cav_use_mode,time_window_flag,single_model_runtime):
 #     sub_sorted_trips=[item for sublist in schedule_partition(sorted_trips,Vehicular_Skim,min_length,max_length) for item in sublist]
     sub_sorted_trips=flatten(schedule_partition(sorted_trips,Vehicular_Skim,min_length,max_length,superzone_map))
     route_info=pd.DataFrame()
@@ -369,14 +374,16 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Sk
     total_previous_sub_trips_length=0
     total_tailing_sub_trips_length=0
     schedule_deviation=[]
+    total_reward=0
+    total_schedule_penalty=0 #The total penalty for early/late arrival
+    total_travel_cost=0
     for sub_sorted_trip in sub_sorted_trips:
-        
         num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone=prd.extract_hh_information(sub_sorted_trip,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile)
         # R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk)
         R=prd.estimate_trip_reward(hh_num_trips,sub_sorted_trip,Vehicular_Skim,reward_mode,superzone_map,drivingcost_per_mile)
-        print(R)
+    
         print('start sovling problem at ',datetime.datetime.now())
-        m1,x,T=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sub_sorted_trip,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
+        m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sub_sorted_trip,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
                                 R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
         
         print('finish solving problem at ',datetime.datetime.now())
@@ -386,6 +393,9 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Sk
         sub_route_info['dest_node_index']=sub_route_info.dest_node_index.apply(lambda x: x+total_previous_sub_trips_length if x<=hh_num_trips else x+2*total_previous_sub_trips_length+total_tailing_sub_trips_length) 
         total_previous_sub_trips_length=total_previous_sub_trips_length+len(sub_sorted_trip)
         route_info=route_info.append(sub_route_info)
+        total_reward+=obj1_value
+        total_schedule_penalty+=obj2_value
+        total_travel_cost+=obj3_value
 #         for index, row in route_info.iterrows():
 #             print(route_info.dest_expected_arrival_time,'\t',row.dest_arrival_time,'\t',row.start_time,'\t',T[row.dest_node_index].x)
 #         #Estimate the delay and early arrival
@@ -395,7 +405,20 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Sk
         T_sol[i]=T[i].x
         
     schedule_deviation.extend(T_sol-expected_arrival_time)
-    return route_info, schedule_deviation
+    darp_solution={}
+    darp_solution['route_info']=route_info
+    darp_solution['schedule_deviation']=schedule_deviation
+    darp_solution['total_reward']=total_reward
+    darp_solution['total_schedule_penalty']=total_schedule_penalty
+    darp_solution['total_travel_cost']=total_travel_cost
+    darp_solution['reward_mode']=reward_mode
+    darp_solution['drivingcost_per_mile']=drivingcost_per_mile
+    darp_solution['share_ride_factor']=share_ride_factor
+    darp_solution['run_mode']=run_mode
+    darp_solution['num_cav']=num_cav
+    darp_solution['cav_use_mode']=cav_use_mode
+    darp_solution['time_window_flag']=time_window_flag
+    return darp_solution
 ################################################
 # One vehicle DNRP
 # def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
