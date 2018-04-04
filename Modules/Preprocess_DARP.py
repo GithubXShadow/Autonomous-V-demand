@@ -146,6 +146,8 @@ def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,
 def estimate_single_car_trip_cost(origin_zone,dest_zone,trip_start_time,vot,Vehicular_Skim,return_flag,superzone_map,drivingcost_per_mile):
     num_skim_interval=Vehicular_Skim.index.get_level_values('T').max()
     correlated_skim_time_interval=math.ceil(trip_start_time/num_skim_interval)
+    print(origin_zone,superzone_map[dest_zone],correlated_skim_time_interval,1)
+    print(Vehicular_Skim.loc[origin_zone,superzone_map[dest_zone],correlated_skim_time_interval,1]['Time'])
     time_temp=Vehicular_Skim.loc[origin_zone,superzone_map[dest_zone],correlated_skim_time_interval,1]['Time'].item()
     cost_temp=Vehicular_Skim.loc[origin_zone,superzone_map[dest_zone],correlated_skim_time_interval,1]['Cost'].item()
     dist_temp=Vehicular_Skim.loc[origin_zone,superzone_map[dest_zone],correlated_skim_time_interval,1]['Dist'].item()

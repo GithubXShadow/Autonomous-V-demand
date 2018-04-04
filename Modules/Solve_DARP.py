@@ -13,7 +13,7 @@ import datetime
 def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
                     expected_arrival_time,early_penalty,late_penalty,
                     early_penalty_threshold,late_penalty_threshold,R,Vehicular_Skim,
-                    share_ride_factor,output_flag,run_mode,
+                    share_ride_factor,output_flag,run_mode,reward_mode,
                     num_cav,cav_use_mode,time_window_flag,single_model_runtime):
     '''
     This function is the mixed integer programing for the dial and ride problem. Serveral run mode are defined
@@ -28,7 +28,6 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     x=m1.addVars(2*hh_num_trips+2,2*hh_num_trips+2,num_cav,vtype=GRB.BINARY,name="x")
     T=m1.addVars(2*hh_num_trips+2,name="T") #T represent the expected arrivial time at a node
     S=m1.addVars(2*hh_num_trips+2,name="S")
-   
     # B=traveler_trips[traveler_trips['hh_id']==household]['starttime'].max()-traveler_trips[traveler_trips['hh_id']==household]['starttime'].min()
     B=1440+Vehicular_Skim.Time.max()
     #Add constraints
@@ -44,6 +43,7 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     else:
         m1.addConstrs((x.sum(i,'*',ve)<=1 for i in [0] for ve in range(num_cav)),"FromDepot2")
         m1.addConstrs((x.sum('*',i,ve)<=1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3")
+
     m1.addConstrs((x.sum(i,'*',"*")>=1 for i in [0] ),"oneFromDepot2")
     m1.addConstrs((x.sum('*',i,"*")>=1 for i in [2*hh_num_trips+1] ),"oneToDepot3") 
     # else:
@@ -53,8 +53,13 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
         # m1.addConstrs((x.sum('*',i)>=1 for i in [2*hh_num_trips+1]),"ToDepot3") 
     
     m1.addConstrs((x.sum(i,"*",ve)==x.sum("*",i+hh_num_trips,ve) for i in range(1,hh_num_trips+1) for ve in range(num_cav)),"DemandbeDelivered11")
-    m1.addConstrs((x.sum(i,"*","*")<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
-    m1.addConstrs((x.sum("*",j,"*")<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
+    if reward_mode==0 and time_window_flag !=1: #if reward mode is zero then force the cav to pick up all target trips
+        m1.addConstrs((x.sum(i,"*","*")==1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
+        m1.addConstrs((x.sum("*",j,"*")==1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
+    else: 
+        m1.addConstrs((x.sum(i,"*","*")<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
+        m1.addConstrs((x.sum("*",j,"*")<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
+
     m1.addConstrs((x.sum("*",i,ve)==x.sum(i,"*",ve) for i in range(1,2*hh_num_trips+1) for ve in range(num_cav)),"FlowConvervative14")
     m1.addConstrs((x[i,i,ve]==0 for i in range(2*hh_num_trips+2) for ve in range(num_cav)),"NoSamePointCircleVisit")
     # ###################################
@@ -93,9 +98,9 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     obj1=sum(x.sum(i,'*',"*")*R[i] for i in range(hh_num_trips+1))
     obj2=S.sum()
     obj3=sum(x.sum(i,j,"*")*C[i,j] for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2))
-    if run_mode==0 or run_mode==2:
-        m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
-    elif run_mode==1:
+    if reward_mode==0 and time_window_flag !=1 :
+        m1.setObjective(-obj2-obj3, GRB.MAXIMIZE)
+    else:
         m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
 
     m1.setParam(GRB.Param.OutputFlag,output_flag)
@@ -210,7 +215,7 @@ def find_av_schedule_exact_method(target_hh_id,traveler_trips,Vehicular_Skim,sup
 #     R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk)
     R=prd.estimate_trip_reward(hh_num_trips,sorted_trip,Vehicular_Skim,reward_mode,superzone_map)
     m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
-                            R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
+                            R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,reward_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
     route_info=extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav)
     return route_info
 
@@ -384,7 +389,7 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Sk
     
         print('start sovling problem at ',datetime.datetime.now())
         m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sub_sorted_trip,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
-                                R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
+                                R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,reward_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
         
         print('finish solving problem at ',datetime.datetime.now())
         sub_route_info=extract_route_from_model_solution(x,T,sub_sorted_trip,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav)
@@ -399,6 +404,8 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Sk
 #         for index, row in route_info.iterrows():
 #             print(route_info.dest_expected_arrival_time,'\t',row.dest_arrival_time,'\t',row.start_time,'\t',T[row.dest_node_index].x)
 #         #Estimate the delay and early arrival
+    route_info.orig_zone=route_info.orig_zone.apply(lambda x: int(x))
+    route_info.dest_zone=route_info.dest_zone.apply(lambda x: int(x))
     T_sol=np.ones(2*hh_num_trips+2)
     for i in range(2*hh_num_trips+2):
     #     print(int(T[i].x),'\t',expected_arrival_time[i],'\t',T[i].x-expected_arrival_time[i])
