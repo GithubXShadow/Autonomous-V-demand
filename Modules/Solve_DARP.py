@@ -37,10 +37,10 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     if share_ride_factor<=1:
         m1.addConstrs((x.sum('*',i,ve)==x[i,i+hh_num_trips,ve] for i in range(1,hh_num_trips+1) for ve in range(num_cav)),'bansharedride')
     # if num_cav==1:
-    if cav_use_mode==0:
+    if cav_use_mode==0: #All vehicles must be used
         m1.addConstrs((x.sum(i,'*',ve)==1 for i in [0] for ve in range(num_cav)),"FromDepot2")
         m1.addConstrs((x.sum('*',i,ve)==1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3") 
-    else:
+    else: #Not all vehicles must be used
         m1.addConstrs((x.sum(i,'*',ve)<=1 for i in [0] for ve in range(num_cav)),"FromDepot2")
         m1.addConstrs((x.sum('*',i,ve)<=1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3")
 
@@ -54,8 +54,8 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     
     m1.addConstrs((x.sum(i,"*",ve)==x.sum("*",i+hh_num_trips,ve) for i in range(1,hh_num_trips+1) for ve in range(num_cav)),"DemandbeDelivered11")
     if reward_mode==0 and time_window_flag !=1: #if reward mode is zero then force the cav to pick up all target trips
-        m1.addConstrs((x.sum(i,"*","*")==1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
-        m1.addConstrs((x.sum("*",j,"*")==1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
+        m1.addConstrs((x.sum(i,"*","*")<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
+        m1.addConstrs((x.sum("*",j,"*")<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
     else: 
         m1.addConstrs((x.sum(i,"*","*")<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
         m1.addConstrs((x.sum("*",j,"*")<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
@@ -69,8 +69,8 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
 #     if force_serve_factor==1: #Force visit all nodes
 #         m1.addConstrs((x.sum(i,"*")==1 for i in range(2*hh_num_trips+1)),"allnodemustbeserved")
     m1.addConstrs((T[j]-T[i]-B*x[i,j,ve]>=TT[i,j]-B for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) for ve in range(num_cav)),"precedencet15")
-    m1.addConstrs((T[i+hh_num_trips]-T[i]-B*x.sum(i,"*","*")>=(TT[i,i+hh_num_trips]-B) for i in range(1,hh_num_trips+1)),"deliverafterpickup16")
-
+    # m1.addConstrs((T[i+hh_num_trips]-T[i]-B*x.sum(i,"*","*")>=(TT[i,i+hh_num_trips]-B) for i in range(1,hh_num_trips+1)),"deliverafterpickup16")
+    m1.addConstrs((T[i+hh_num_trips]-T[i]>=(TT[i,i+hh_num_trips]) for i in range(1,hh_num_trips+1)),"deliverafterpickup16")
     m1.addConstrs((T[i+hh_num_trips]-T[i]<=share_ride_factor*TT[i,i+hh_num_trips] for i in range(1,hh_num_trips+1)),"triptimecannotexcceed1.5expectedtraveltime")
     
     # ####################################
@@ -99,7 +99,7 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     obj2=S.sum()
     obj3=sum(x.sum(i,j,"*")*C[i,j] for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2))
     if reward_mode==0 and time_window_flag !=1 :
-        m1.setObjective(-obj2-obj3, GRB.MAXIMIZE)
+        m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
     else:
         m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
 

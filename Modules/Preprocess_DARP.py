@@ -110,44 +110,42 @@ def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,
         return opt_transit_time
     if output_flag==2:
         return opt_walk_time
-def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,TransitMazTazFlag,three_link_walk,Transit_AB_Cost_Skim,TransitSkimTimeIntervalLength,WalkSpeed,output_flag):
-    min_transit_gc=1440
-    transit_gc_temp=1440
-    transit_start_time_interval=math.ceil(trip_start_time/TransitSkimTimeIntervalLength)-1
-    opt_transit_time=0
+# def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,TransitMazTazFlag,three_link_walk,Transit_AB_Cost_Skim,TransitSkimTimeIntervalLength,WalkSpeed,output_flag):
+#     min_transit_gc=1440
+#     transit_gc_temp=1440
+#     transit_start_time_interval=math.ceil(trip_start_time/TransitSkimTimeIntervalLength)-1
+#     opt_transit_time=0
     
-    for otap in three_link_walk.loc[three_link_walk.three_link_zone==origin_zone].transit_zone:
-        for dtap in three_link_walk.loc[three_link_walk.three_link_zone==dest_zone].transit_zone:
-            if (Transit_AB_Time_Skim.loc[(Transit_AB_Time_Skim.otap==otap) & 
-                                        (Transit_AB_Time_Skim.dtap==dtap)].empty) or (Transit_AB_Time_Skim.loc[(Transit_AB_Time_Skim.otap==otap) & (Transit_AB_Time_Skim.dtap==dtap),int(transit_start_time_interval)].item()==0):
-                transit_gc_temp=1440
+#     for otap in three_link_walk.loc[three_link_walk.three_link_zone==origin_zone].transit_zone:
+#         for dtap in three_link_walk.loc[three_link_walk.three_link_zone==dest_zone].transit_zone:
+#             if (Transit_AB_Time_Skim.loc[(Transit_AB_Time_Skim.otap==otap) & 
+#                                         (Transit_AB_Time_Skim.dtap==dtap)].empty) or (Transit_AB_Time_Skim.loc[(Transit_AB_Time_Skim.otap==otap) & (Transit_AB_Time_Skim.dtap==dtap),int(transit_start_time_interval)].item()==0):
+#                 transit_gc_temp=1440
                 
-            else:
-                transit_gc_temp=Transit_AB_Time_Skim.loc[(Transit_AB_Time_Skim.otap==otap) 
-                                                           &(Transit_AB_Time_Skim.dtap==dtap)
-                                                          ,int(transit_start_time_interval)].item()*vot +2*three_link_walk.loc[(three_link_walk.three_link_zone==origin_zone) &(three_link_walk.transit_zone==otap),'distance'].item()*1.5*vot/WalkSpeed/60
+#             else:
+#                 transit_gc_temp=Transit_AB_Time_Skim.loc[(Transit_AB_Time_Skim.otap==otap) 
+#                                                            &(Transit_AB_Time_Skim.dtap==dtap)
+#                                                           ,int(transit_start_time_interval)].item()*vot +2*three_link_walk.loc[(three_link_walk.three_link_zone==origin_zone) &(three_link_walk.transit_zone==otap),'distance'].item()*1.5*vot/WalkSpeed/60
                 
-                if transit_gc_temp==0:
-                    transit_gc_temp=1440
-            if (transit_gc_temp<min_transit_gc):
-                min_transit_gc=transit_gc_temp
-                otap_candidate=otap
-                dtap_candidate=dtap
-                opt_transit_time=Transit_AB_Time_Skim.loc[(Transit_AB_Cost_Skim.otap==otap) 
-                                                           &(Transit_AB_Cost_Skim.dtap==dtap)
-                                                          ,int(transit_start_time_interval)].item()
-                opt_walk_time=2*three_link_walk.loc[(three_link_walk.three_link_zone==origin_zone) &(three_link_walk.transit_zone==otap),'distance'].item()/WalkSpeed/60
-    if output_flag==0:
-        return min_transit_gc+transit_fare+transit_asc+np.random.logistic()/0.6
-    if output_flag==1:
-        return opt_transit_time
-    if output_flag==2:
-        return opt_walk_time
+#                 if transit_gc_temp==0:
+#                     transit_gc_temp=1440
+#             if (transit_gc_temp<min_transit_gc):
+#                 min_transit_gc=transit_gc_temp
+#                 otap_candidate=otap
+#                 dtap_candidate=dtap
+#                 opt_transit_time=Transit_AB_Time_Skim.loc[(Transit_AB_Cost_Skim.otap==otap) 
+#                                                            &(Transit_AB_Cost_Skim.dtap==dtap)
+#                                                           ,int(transit_start_time_interval)].item()
+#                 opt_walk_time=2*three_link_walk.loc[(three_link_walk.three_link_zone==origin_zone) &(three_link_walk.transit_zone==otap),'distance'].item()/WalkSpeed/60
+#     if output_flag==0:
+#         return min_transit_gc+transit_fare+transit_asc+np.random.logistic()/0.6
+#     if output_flag==1:
+#         return opt_transit_time
+#     if output_flag==2:
+#         return opt_walk_time
 def estimate_single_car_trip_cost(origin_zone,dest_zone,trip_start_time,vot,Vehicular_Skim,return_flag,superzone_map,drivingcost_per_mile):
     num_skim_interval=Vehicular_Skim.index.get_level_values('T').max()
     correlated_skim_time_interval=math.ceil(trip_start_time/num_skim_interval)
-    print(origin_zone,superzone_map[dest_zone],correlated_skim_time_interval,1)
-    print(Vehicular_Skim.loc[origin_zone,superzone_map[dest_zone],correlated_skim_time_interval,1]['Time'])
     time_temp=Vehicular_Skim.loc[origin_zone,superzone_map[dest_zone],correlated_skim_time_interval,1]['Time'].item()
     cost_temp=Vehicular_Skim.loc[origin_zone,superzone_map[dest_zone],correlated_skim_time_interval,1]['Cost'].item()
     dist_temp=Vehicular_Skim.loc[origin_zone,superzone_map[dest_zone],correlated_skim_time_interval,1]['Dist'].item()

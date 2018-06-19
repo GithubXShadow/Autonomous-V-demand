@@ -62,7 +62,7 @@ def analysis_result(darp_solution,sorted_trips,Vehicular_Skim,superzone_map):
     # print('Total delayed time\t',darp_analyzed_result['total_delayed_time'])
     # print('Total_early_time\t',darp_analyzed_result['Total_early_time'])
     # plt.pyplot.figure(1,figsize=[2.3,10])
-    plot_route_info_schedule(route_info,sorted_trips,num_cav)
+    # plot_route_info_schedule(route_info,sorted_trips,num_cav)
     return darp_analyzed_result
 
 def plot_route_info_schedule(route_info,sorted_trips,num_cav):
@@ -75,19 +75,20 @@ def plot_route_info_schedule(route_info,sorted_trips,num_cav):
     route_info['p_id']=route_info.person_id.apply(lambda x: person_id_and_inhouse_p_id_map[x])
     
     plt.pyplot.scatter(route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips),'p_id'],
-                route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips),'origin_arrival_time'])
+                route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips),'origin_arrival_time'],label='_nolegend')
     # color=iter(plt.pyplot.cm.rainbow(np.linspace(0,1,num_cav)))
 
     for ve in range(num_cav):
-        # c=next(color)
-        # print(ve)
-        # print(route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) & (route_info.hh_vehicle_id==ve),'origin_arrival_time'])
+        line_label='AV '+str(ve+1)
         plt.pyplot.plot(route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) & (route_info.hh_vehicle_id==ve),'p_id'],
-                        route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) & (route_info.hh_vehicle_id==ve),'origin_arrival_time'])
+                        route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) & (route_info.hh_vehicle_id==ve),'origin_arrival_time'],
+                        label=line_label)
+
 #     plt.pyplot.scatter(route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) & (route_info.dest_node_index<1+hh_num_trips),'p_id'],
 #                     route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) &(route_info.dest_node_index<1+hh_num_trips),'origin_arrival_time'])
     plt.pyplot.xlabel('Traveler Index')
     plt.pyplot.ylabel('Time')
+    plt.pyplot.legend()
     plt.pyplot.grid()
     plt.pyplot.xticks(np.arange(min(sorted_trips.p_id), max(sorted_trips.p_id)+1, 1))
     plt.pyplot.yticks(np.arange(0,1441,30))

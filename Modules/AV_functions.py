@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib as plt
 import networkx as nx
-get_ipython().magic('matplotlib inline')
+# get_ipython().magic('matplotlib inline')
 from Modules import *
 from Modules import DYNASMART_Process as dy
 
@@ -69,6 +69,31 @@ def trip_chain_highlight(trip_chain_or,node_detail,link_detail,nodexy):
     pos=nx.get_node_attributes(Gnormal,'pos')
     nx.draw(Gnormal,pos,node_size=1,node_color='black',dpi=900)             
     nx.draw(Gred,pos,edge_color='r',node_color='black',node_size=4,arrows=True,style='dotted',dpi=900)
+    return  
+
+def zone_node_highlight(target_node_list,node_detail,link_detail,nodexy,target_node_color):
+    '''
+        input trip_chain_or: a dataframe contains the origin and destination nodes of all the trips in one trip chain
+    '''
+    # target_zone_list.apply(lambda row: dy.find_orign_destination_node(row['origin_zone'],row[''])) 
+
+    plt.pyplot.figure()
+    Gnormal=nx.Graph()
+    Gred=nx.Graph()
+    for nodeinf in node_detail:
+        node=nodeinf[0,0]
+        Gnormal.add_node(node,pos=(nodexy[node][0],nodexy[node][1]))
+        
+    for linkinf in link_detail: 
+        Gnormal.add_edge(linkinf[0,0],linkinf[0,1])
+    for target_node in target_node_list:
+        Gred.add_node(target_node,pos=(nodexy[target_node][0],nodexy[target_node][1]))
+    for i in range(len(target_node_list)-1):
+        Gred.add_edge(target_node_list[i],target_node_list[i+1])
+    pos=nx.get_node_attributes(Gnormal,'pos')
+    nx.draw(Gnormal,pos,node_size=1,node_color='black',dpi=900)             
+    nx.draw(Gred,pos,edge_color='black',node_color=target_node_color,node_size=40,arrows=True,style='dotted',dpi=900)
+
     return  
 
 def calculate_node_distance_matrix(visit_candidate,nodexy,C):

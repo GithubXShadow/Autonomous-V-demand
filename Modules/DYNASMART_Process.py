@@ -155,18 +155,19 @@ def read_vehicle_skim(skim_folder_path):
                 NumSkimIntervals=line.split()[0]
             elif i==1 and 'TAZ' in line:
                 NumSkimOriginZone=line.split()[0]
+
     NumSkimIntervals=int(NumSkimIntervals)
     NumSkimOriginZone=int(NumSkimOriginZone)
     print(NumSkimSuperZone,NumSkimOriginZone,NumSkimIntervals)
     #Create a list of Time and Origin. The list is determined by how the data were writen in the vehicularpnrskim
-    #When interation equals 0, the file iterate through time frist. In other words the loop should be writen as 
+    #When interation larger than 0, the file iterate through time frist. In other words the loop should be writen as 
     #(do O=1,NumSkimOriginZone: do T=1, NumSkimIntervals). When iteration number is lager than 1, the order reverse
     if NumIteration>0:
-        Tlist=list(range(1,NumSkimIntervals+1))*NumSkimOriginZone
+        Tlist=list(list(range(1,NumSkimIntervals+1))*NumSkimOriginZone)
         Olist=list(np.repeat(range(1,NumSkimOriginZone+1),NumSkimIntervals))
     else:
         Tlist=list(np.repeat(range(1,NumSkimIntervals+1),NumSkimOriginZone))
-        Olist=list(range(1,NumSkimOriginZone+1))*NumSkimIntervals
+        Olist=list(list(range(1,NumSkimOriginZone+1))*NumSkimIntervals)
     #Start to read the files 
     Os=[]
     Ds=[]
@@ -193,10 +194,12 @@ def read_vehicle_skim(skim_folder_path):
                     Cost.extend([float(line_list[4*j-2])])
                     Time.extend([float(line_list[4*j-1])])
                     Dist.extend([float(line_list[4*j])])
-    Vehicular_Skim=pd.DataFrame(data={'O':Os,'D':Ds,'T':Ts,'VotIndex':VotNo,'Vot':VotValue
-                                     ,'Cost':Cost,'Time':Time,'Dist':Dist})          
-    Vehicular_Skim.set_index(['O', 'D','T','VotIndex'], inplace=True)
-    Vehicular_Skim.sort_index(inplace=True)
+    Vehicular_Skim=pd.DataFrame(data={'O':Os,'D':Ds,'TI':Ts ,'VotIndex':VotNo,'Vot':VotValue
+                                     ,'Cost':Cost,'Time':Time,'Dist':Dist})    
+
+
+    # Vehicular_Skim.set_index(['O', 'D','T','VotIndex'], inplace=True)
+    # Vehicular_Skim.sort_index(inplace=True)
     return Vehicular_Skim
 def read_transit_setting(transit_setting_filepath):
     f=open(transit_setting_filepath,'r')
@@ -316,12 +319,10 @@ def cluster_highlight(linklist):
         Gnormal.add_node(node,pos=(nodexy[node][0],nodexy[node][1]))
         Gred.add_node(node,pos=(nodexy[node][0],nodexy[node][1]))
     counter=0
-    normal_link=[]
     for linkinf in link_detail: 
         if counter in linklist:
             Gred.add_edge(linkinf[0,0],linkinf[0,1])
         else:
-            normal_link.append((linkinf[0,0],linkinf[0,1]))
             Gnormal.add_edge(linkinf[0,0],linkinf[0,1])
         counter=counter+1
             
@@ -390,7 +391,7 @@ def convert_travelerdat(input_path,output_path):
     return
 
 #Find the origin and destination node of one trip
-def find_orign_destination_node(origin_zone,destination_zone):
+def find_orign_destination_node(origin_zone,destination_zone,origins,destinations):
     '''
         input: 
             the origin zone number and destination zone number
