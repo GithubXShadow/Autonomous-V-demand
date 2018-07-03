@@ -198,8 +198,8 @@ def read_vehicle_skim(skim_folder_path):
                                      ,'Cost':Cost,'Time':Time,'Dist':Dist})    
 
 
-    # Vehicular_Skim.set_index(['O', 'D','T','VotIndex'], inplace=True)
-    # Vehicular_Skim.sort_index(inplace=True)
+    Vehicular_Skim.set_index(['O', 'D','TI','VotIndex'], inplace=True)
+    Vehicular_Skim.sort_index(inplace=True)
     return Vehicular_Skim
 def read_transit_setting(transit_setting_filepath):
     f=open(transit_setting_filepath,'r')

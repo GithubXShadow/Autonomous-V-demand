@@ -6,59 +6,68 @@
 import numpy as np
 import pandas as pd
 import math
+import datetime
 
-def get_travel_cost_matrix(sorted_trips,Vehicular_Skim,superzone_map,drivingcost_per_mile):
+def get_travel_cost_matrix(sorted_trips,Vehicular_Skim,superzone_map,drivingcost_per_mile,num_time_interval):
     '''
     This function returns two matrix: 
-    C: the cost matrix
-    TT: the travel time matrix
+        C: the cost matrix. Each element is the travel cost between two nodes in the dial-n-ride problem network at a time interval
+        TT: the travel time matrix. Each element is the travel time between two nodes in the dial-n-ride problem network at a time interval
+    Input:
+        Vehicular_Skim: the skim file from dynasmart
+        superzone_map: store the relationship between taz and superzone
+        num_time_interval: number of time interval used in the dial-and-ride problem. 
     '''
-    num_skim_interval=Vehicular_Skim.index.get_level_values('T').max()
+    num_skim_interval=Vehicular_Skim.index.get_level_values('TI').max()
+    # print('check3',datetime.datetime.now())
     hh_num_trips=sorted_trips.shape[0]
-    C=np.ones((2*hh_num_trips+2,2*hh_num_trips+2))
-    TT=np.ones((2*hh_num_trips+2,2*hh_num_trips+2))
+    C=np.ones((2*hh_num_trips+2,2*hh_num_trips+2,num_time_interval))
+    TT=np.ones((2*hh_num_trips+2,2*hh_num_trips+2,num_time_interval))
     visit_candidate_zone=[sorted_trips['orig_taz'].iloc[0]]
     visit_candidate_zone.extend(sorted_trips['orig_taz'].tolist())
     visit_candidate_zone.extend(sorted_trips['dest_taz'].tolist())
     visit_candidate_zone.extend([sorted_trips['orig_taz'].iloc[0]])
-
-    correlated_skim_time_interval=[math.ceil(sorted_trips.starttime.iloc[0].item()/num_skim_interval)]
-    correlated_skim_time_interval.extend(sorted_trips.starttime.apply(lambda x: math.ceil(x/num_skim_interval)))
-    correlated_skim_time_interval.extend(sorted_trips.starttime.apply(lambda x: math.ceil(x/num_skim_interval)))
-    correlated_skim_time_interval.extend([math.ceil(sorted_trips.starttime.iloc[-1].item()/num_skim_interval)])
+    # print('check4',datetime.datetime.now())
+    if num_time_interval==1:
+        correlated_skim_time_interval=[math.ceil(sorted_trips.starttime.iloc[0].item()/(1440/num_skim_interval))]
+        correlated_skim_time_interval.extend(sorted_trips.starttime.apply(lambda x: math.ceil(x/(1440/num_skim_interval))))
+        correlated_skim_time_interval.extend(sorted_trips.starttime.apply(lambda x: math.ceil(x/(1440/num_skim_interval))))
+        correlated_skim_time_interval.extend([math.ceil(sorted_trips.starttime.iloc[-1].item()/(1440/num_skim_interval))])
     correlated_vot=[0.16]
     correlated_vot.extend(sorted_trips.value_of_time)
 #     correlated_vot.extend(sorted_trips.value_of_time)
 #     correlated_vot.extend([0.16])
     correlated_vot.extend([0.16]*(hh_num_trips+1))
-
-    for i,ozone in zip(range(len(visit_candidate_zone)),visit_candidate_zone):
-        for j,dzone in zip(range(len(visit_candidate_zone)),visit_candidate_zone):
-            if i!=j:
-                time_temp=Vehicular_Skim.loc[ozone,superzone_map[dzone],correlated_skim_time_interval[i],1]['Time'].item()
-                cost_temp=Vehicular_Skim.loc[ozone,superzone_map[dzone],correlated_skim_time_interval[i],1]['Cost'].item()
-                dist_temp=Vehicular_Skim.loc[ozone,superzone_map[dzone],correlated_skim_time_interval[i],1]['Dist'].item()
-
-                C[i,j]=time_temp*correlated_vot[i]+cost_temp+dist_temp*drivingcost_per_mile
-                TT[i,j]=time_temp
+    # print('check5',datetime.datetime.now())
+    for ti in range(num_time_interval):
+        # print('check1',ti,datetime.datetime.now())
+        
+        current_skim_time_interval=math.ceil(1440/num_time_interval*(ti+0.5)/(1440/num_skim_interval))
+        # print(ti,num_skim_interval,current_skim_time_interval,1440/num_time_interval*(ti+0.5))
+        for i,ozone in zip(range(len(visit_candidate_zone)),visit_candidate_zone):
             
-                #The cost and travel time between the destination of ith trip and the origin of i+1th trip of same traveler is zero
-                if j==i-hh_num_trips+1 and i <2*hh_num_trips: 
-                    if (sorted_trips.iloc[i-hh_num_trips-1].person_id == sorted_trips.iloc[j-1].person_id):
-                        C[i,j]=0
-                        TT[i,j]=0
-            else:   
-                C[i,j]=0
-                TT[i,j]=0
-#             if i>0 and j ==i+hh_num_trips:
-#                 print(sorted_trips['travel_time'].iloc[i-1])
-#                 print('check')
-#                 print(Vehicular_Skim.loc[ozone,dzone,72,1]['Time'])
-    
-    C[0,:]=0.01
-    TT[0,:]=0.01
-    C[:,2*hh_num_trips+1]=0.01
-    TT[:,2*hh_num_trips+1]=0.01
+            for j,dzone in zip(range(len(visit_candidate_zone)),visit_candidate_zone):
+                if i!=j:
+                    if num_time_interval==1:
+                        current_skim_time_interval=correlated_skim_time_interval[i]
+                    time_temp=Vehicular_Skim.loc[ozone,superzone_map[dzone],current_skim_time_interval,1]['Time']
+                    cost_temp=Vehicular_Skim.loc[ozone,superzone_map[dzone],current_skim_time_interval,1]['Cost']
+                    dist_temp=Vehicular_Skim.loc[ozone,superzone_map[dzone],current_skim_time_interval,1]['Dist']
+                    C[i,j,ti]=time_temp*correlated_vot[i]+cost_temp+dist_temp*drivingcost_per_mile
+                    TT[i,j,ti]=time_temp
+                    #The cost and travel time between the destination of ith trip and the origin of i+1th trip of same traveler is zero
+                    if j==i-hh_num_trips+1 and i <2*hh_num_trips: 
+                        if (sorted_trips.iloc[i-hh_num_trips-1].person_id == sorted_trips.iloc[j-1].person_id):
+                            C[i,j,ti]=0
+                            TT[i,j,ti]=0
+                else:   
+                    C[i,j,ti]=0
+                    TT[i,j,ti]=0
+                # print('check2',j,datetime.datetime.now())
+    C[0,:,:]=0.01
+    TT[0,:,:]=0.01
+    C[:,2*hh_num_trips+1,:]=0.01
+    TT[:,2*hh_num_trips+1,:]=0.01
 #     for i in range(hh_num_trips): 
 #         TT[i+1,i+hh_num_trips+1]=sorted_trips['travel_time'].iloc[i]
     return C,TT
@@ -144,7 +153,7 @@ def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,
 #     if output_flag==2:
 #         return opt_walk_time
 def estimate_single_car_trip_cost(origin_zone,dest_zone,trip_start_time,vot,Vehicular_Skim,return_flag,superzone_map,drivingcost_per_mile):
-    num_skim_interval=Vehicular_Skim.index.get_level_values('T').max()
+    num_skim_interval=Vehicular_Skim.index.get_level_values('TI').max()
     correlated_skim_time_interval=math.ceil(trip_start_time/num_skim_interval)
     time_temp=Vehicular_Skim.loc[origin_zone,superzone_map[dest_zone],correlated_skim_time_interval,1]['Time'].item()
     cost_temp=Vehicular_Skim.loc[origin_zone,superzone_map[dest_zone],correlated_skim_time_interval,1]['Cost'].item()
@@ -194,7 +203,7 @@ def estimate_trip_reward(hh_num_trips,sorted_trips,Vehicular_Skim,reward_mode,su
         R=150*np.ones(1+hh_num_trips)
     return R
 
-def extract_hh_information(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile):
+def extract_hh_information(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile,num_time_interval):
     '''
     Get the household related information. Those information will be used as input
     for the optimization model
@@ -213,7 +222,7 @@ def extract_hh_information(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,supe
     visit_candidate.extend(sorted_trips['destination_node'].tolist())
     visit_candidate.extend([sorted_trips['destination_node'].iloc[-1]])
 
-    C,TT=get_travel_cost_matrix(sorted_trips,Vehicular_Skim,superzone_map,drivingcost_per_mile)
+    C,TT=get_travel_cost_matrix(sorted_trips,Vehicular_Skim,superzone_map,drivingcost_per_mile,num_time_interval)
     visit_candidate_zone=[sorted_trips['orig_taz'].iloc[0]]
     visit_candidate_zone.extend(sorted_trips['orig_taz'].tolist())
     visit_candidate_zone.extend(sorted_trips['dest_taz'].tolist())
@@ -241,7 +250,8 @@ def extract_hh_information(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,supe
     late_penalty_threshold[hh_num_trips+1:2*hh_num_trips+1]=sorted_trips.late_penalty_threshold
     for i in range(1+hh_num_trips,2*hh_num_trips+1):
         #Expected arrival time at the destination node is the trip starttime + expected travel time
-        expected_arrival_time[i]=expected_arrival_time[i-hh_num_trips]+TT[i-hh_num_trips,i] 
+        expected_arrival_time_interval=math.floor(expected_arrival_time[i-hh_num_trips]/(1440/num_time_interval))
+        expected_arrival_time[i]=expected_arrival_time[i-hh_num_trips]+TT[i-hh_num_trips,i,expected_arrival_time_interval] 
         #Expected leav time at the destination node is the trip start time of the same person's next trip
         expected_leave_time[i]=expected_arrival_time[i-hh_num_trips+1]
         

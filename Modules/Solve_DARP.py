@@ -10,94 +10,117 @@ from gurobipy import *
 import datetime
 
 
-def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
+def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,sorted_trips,
                     expected_arrival_time,early_penalty,late_penalty,
                     early_penalty_threshold,late_penalty_threshold,R,Vehicular_Skim,
                     share_ride_factor,output_flag,run_mode,reward_mode,
-                    num_cav,cav_use_mode,time_window_flag,single_model_runtime):
+                    num_cav,num_time_interval,cav_use_mode,time_window_flag,single_model_runtime):
     '''
     This function is the mixed integer programing for the dial and ride problem. Serveral run mode are defined
     run_mode: 
     0 basic formulation soft time window
     1 mode choice extension
+    2 schedule rescheduling
     cav_use_mode:
         0 if all num_cav must be used
         1 if num_cav is the upper limite
     '''
     m1=Model("AVSchedule")
-    x=m1.addVars(2*hh_num_trips+2,2*hh_num_trips+2,num_cav,vtype=GRB.BINARY,name="x")
+    # x=m1.addVars(2*hh_num_trips+2,2*hh_num_trips+2,num_cav,vtype=GRB.BINARY,name="x")
+    x=m1.addVars(2*hh_num_trips+2,2*hh_num_trips+2,num_cav,num_time_interval,vtype=GRB.BINARY,name="x")
+    y=m1.addVars(hh_num_trips+1,hh_num_trips+1,vtype=GRB.BINARY,name='y')
     T=m1.addVars(2*hh_num_trips+2,name="T") #T represent the expected arrivial time at a node
     S=m1.addVars(2*hh_num_trips+2,name="S")
     # B=traveler_trips[traveler_trips['hh_id']==household]['starttime'].max()-traveler_trips[traveler_trips['hh_id']==household]['starttime'].min()
     B=1440+Vehicular_Skim.Time.max()
     #Add constraints
+    m1.addConstrs((x.sum(0,i,0,'*')==1 for i in [1]),'testconstraint')
     ###################################
     #Basic deliver and pickup constraints
 #     m1.addConstrs((x.sum(i,'*')==1 for i in range(1,hh_num_trips+1)),"forcepickupalldemand")
     if share_ride_factor<=1:
-        m1.addConstrs((x.sum('*',i,ve)==x[i,i+hh_num_trips,ve] for i in range(1,hh_num_trips+1) for ve in range(num_cav)),'bansharedride')
+        m1.addConstrs((x.sum('*',i,ve,'*')==x[i,i+hh_num_trips,ve,'*'] for i in range(1,hh_num_trips+1) for ve in range(num_cav)),'bansharedride')
     # if num_cav==1:
     if cav_use_mode==0: #All vehicles must be used
-        m1.addConstrs((x.sum(i,'*',ve)==1 for i in [0] for ve in range(num_cav)),"FromDepot2")
-        m1.addConstrs((x.sum('*',i,ve)==1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3") 
+        m1.addConstrs((x.sum(i,'*',ve,'*')==1 for i in [0] for ve in range(num_cav)),"FromDepot2")
+        m1.addConstrs((x.sum('*',i,ve,'*')==1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3") 
     else: #Not all vehicles must be used
-        m1.addConstrs((x.sum(i,'*',ve)<=1 for i in [0] for ve in range(num_cav)),"FromDepot2")
-        m1.addConstrs((x.sum('*',i,ve)<=1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3")
+        m1.addConstrs((x.sum(i,'*',ve,'*')<=1 for i in [0] for ve in range(num_cav)),"FromDepot2")
+        m1.addConstrs((x.sum('*',i,ve,'*')<=1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3")
 
-    m1.addConstrs((x.sum(i,'*',"*")>=1 for i in [0] ),"oneFromDepot2")
-    m1.addConstrs((x.sum('*',i,"*")>=1 for i in [2*hh_num_trips+1] ),"oneToDepot3") 
-    # else:
-    #     m1.addConstrs((x.sum(i,'*')==num_cav for i in [0]),"FromDepotlessthannumpoav2")
-    #     m1.addConstrs((x.sum('*',i)==num_cav for i in [2*hh_num_trips+1]),"ToDepotlessthannumpoav3") 
-        # m1.addConstrs((x.sum(i,'*')>=1 for i in [0]),"FromDepot2")
-        # m1.addConstrs((x.sum('*',i)>=1 for i in [2*hh_num_trips+1]),"ToDepot3") 
+    m1.addConstrs((x.sum(i,'*',"*",'*')>=1 for i in [0] ),"oneFromDepot2")
+    m1.addConstrs((x.sum('*',i,"*",'*')>=1 for i in [2*hh_num_trips+1] ),"oneToDepot3") 
+
     
-    m1.addConstrs((x.sum(i,"*",ve)==x.sum("*",i+hh_num_trips,ve) for i in range(1,hh_num_trips+1) for ve in range(num_cav)),"DemandbeDelivered11")
+    m1.addConstrs((x.sum(i,"*",ve,"*")==x.sum("*",i+hh_num_trips,ve,"*") for i in range(1,hh_num_trips+1) for ve in range(num_cav)),"DemandbeDelivered11")
     if reward_mode==0 and time_window_flag !=1: #if reward mode is zero then force the cav to pick up all target trips
-        m1.addConstrs((x.sum(i,"*","*")<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
-        m1.addConstrs((x.sum("*",j,"*")<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
-    else: 
-        m1.addConstrs((x.sum(i,"*","*")<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
-        m1.addConstrs((x.sum("*",j,"*")<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
+        m1.addConstrs((x.sum(i,"*","*",'*')==1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
+        m1.addConstrs((x.sum("*",j,"*",'*')==1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
+    else: #Otherwise pickup is optional
+        m1.addConstrs((x.sum(i,"*","*",'*')<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
+        m1.addConstrs((x.sum("*",j,"*",'*')<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
 
-    m1.addConstrs((x.sum("*",i,ve)==x.sum(i,"*",ve) for i in range(1,2*hh_num_trips+1) for ve in range(num_cav)),"FlowConvervative14")
-    m1.addConstrs((x[i,i,ve]==0 for i in range(2*hh_num_trips+2) for ve in range(num_cav)),"NoSamePointCircleVisit")
+    m1.addConstrs((x.sum("*",i,ve,'*')==x.sum(i,"*",ve,'*') for i in range(1,2*hh_num_trips+1) for ve in range(num_cav)),"FlowConvervative14")
+    m1.addConstrs((x.sum(i,i,ve,ti)==0 for i in range(2*hh_num_trips+2) for ve in range(num_cav) for ti in range(num_time_interval)),"NoSamePointCircleVisit")
     # ###################################
     #Time constratins
     if time_window_flag==1: #exact arrvial time
         m1.addConstrs((T[i]==expected_arrival_time[i] for i in range(1,2*hh_num_trips+2)),'ExactStartTime')
 #     if force_serve_factor==1: #Force visit all nodes
 #         m1.addConstrs((x.sum(i,"*")==1 for i in range(2*hh_num_trips+1)),"allnodemustbeserved")
-    m1.addConstrs((T[j]-T[i]-B*x[i,j,ve]>=TT[i,j]-B for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) for ve in range(num_cav)),"precedencet15")
+    m1.addConstrs((T[j]-T[i]-B*x[i,j,ve,ti]>=TT[i,j,ti]-B 
+        for i in range(2*hh_num_trips+2) 
+        for j in range(2*hh_num_trips+2) 
+        for ve in range(num_cav) 
+        for ti in range(num_time_interval)),"precedencet15")
     # m1.addConstrs((T[i+hh_num_trips]-T[i]-B*x.sum(i,"*","*")>=(TT[i,i+hh_num_trips]-B) for i in range(1,hh_num_trips+1)),"deliverafterpickup16")
-    m1.addConstrs((T[i+hh_num_trips]-T[i]>=(TT[i,i+hh_num_trips]) for i in range(1,hh_num_trips+1)),"deliverafterpickup16")
-    m1.addConstrs((T[i+hh_num_trips]-T[i]<=share_ride_factor*TT[i,i+hh_num_trips] for i in range(1,hh_num_trips+1)),"triptimecannotexcceed1.5expectedtraveltime")
+    m1.addConstrs((T[i+hh_num_trips]-T[i]>=(TT[i,i+hh_num_trips,ti]*x.sum(i,'*','*',ti)) 
+        for i in range(1,hh_num_trips+1) 
+        for ti in range(num_time_interval)),"deliverafterpickup16")
+    m1.addConstrs((T[i+hh_num_trips]-T[i]-B<=share_ride_factor*TT[i,i+hh_num_trips,ti]-B*x.sum(i,'*','*',ti) 
+        for i in range(1,hh_num_trips+1) 
+        for ti in range(num_time_interval)),"triptimecannotexcceed1.5expectedtraveltime")
     
     # ####################################
     # #Late/Early Arrival penalty
     m1.addConstrs((S[i]>=early_penalty[i]*(expected_arrival_time[i]-T[i]) for i in range(2*hh_num_trips+2)),'earlyarrivalpenalty')
     m1.addConstrs((S[i]>=late_penalty[i]*(T[i]-expected_arrival_time[i]) for i in range(2*hh_num_trips+2)),'latearrivalpenalty')
-    m1.addConstrs((S[i]>=2*early_penalty[i]*(expected_arrival_time[i]-T[i])-early_penalty[i]*early_penalty_threshold[i] for i in range(2*hh_num_trips+2)),'earlyarrivaloverthrespenalty')
-    m1.addConstrs((S[i]>=2*late_penalty[i]*(T[i]-expected_arrival_time[i])-late_penalty[i]*late_penalty_threshold[i] for i in range(2*hh_num_trips+2)),'latearrivaloverthrespenalty')
-#     m1.addConstrs((T[i]==expected_arrival_time[i] for i in [2*hh_num_trips]),'test123')
+    m1.addConstrs((S[i]>=2*early_penalty[i]*(expected_arrival_time[i]-T[i])-early_penalty[i]*early_penalty_threshold[i] 
+        for i in range(2*hh_num_trips+2)),'earlyarrivaloverthrespenalty')
+    m1.addConstrs((S[i]>=2*late_penalty[i]*(T[i]-expected_arrival_time[i])-late_penalty[i]*late_penalty_threshold[i] 
+        for i in range(2*hh_num_trips+2)),'latearrivaloverthrespenalty')
     # ####################################
     # Special Constraints for this problem
+    if run_mode<2: 
+        m1.addConstrs((T[j]-T[i+hh_num_trips]-B*(x.sum("*",i,"*")+x.sum("*",j,"*")-1)>=-B 
+                            for i in range(1,hh_num_trips+1) for j in range(i+1,hh_num_trips+1)
+                            if sorted_trips.iloc[i-1]['person_id']==sorted_trips.iloc[j-1]['person_id']),
+                            'personal_sequence_consistent'
+                     ) # For the same person, the sequence of activity can not be violated
+        
+        m1.addConstrs((x[i,j,ve]==0 
+                    for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) for ve in range(num_cav)
+                    if expected_arrival_time[j]-expected_arrival_time[i]<-30)
+                     ,'TripIearlierthanTripj') #
+    else:
+        m1.addConstrs((T[i]+B*x.sum(i,'*','*',ti)<=TU[ti]+B 
+            for i in range(2*hh_num_trips+2) for ti in range(num_time_interval)),'get_time_interval1')
+        m1.addConstrs((T[i]-TL[ti]*x.sum(i,'*','*',ti)>=0 
+            for i in range(2*hh_num_trips+2) for ti in range(num_time_interval)),'get_time_interval2')
+        m1.addConstrs((T[k]-T[i+hh_num_trips]-(x.sum(k,'*','*','*')+x.sum(i,'*','*','*')-1)*B
+            >=TT[i,k,ti]*x.sum(i,'*','*',ti)-B-B*y[i,k] 
+            for i in range(1,hh_num_trips+1) for k in range(1,hh_num_trips+1) for ti in range(num_time_interval))
+            ,if sorted_trips.iloc[i-1]['person_id']==sorted_trips.iloc[k-1]['person_id']
+            ,'activity_sequence'
+        )
+        m1.addConstrs((y[i,j]==1-y[j,i]) for i in range(1,hh_num_trips+1) for j in range(i+1,hh_num_trips+1))
 
-    m1.addConstrs((T[j]-T[i+hh_num_trips]-B*(x.sum("*",i,"*")+x.sum("*",j,"*")-1)>=-B 
-                        for i in range(1,hh_num_trips+1) for j in range(i+1,hh_num_trips+1)
-                        if sorted_trips.iloc[i-1]['person_id']==sorted_trips.iloc[j-1]['person_id']),
-                        'personal_sequence_consistent'
-                 ) # For the same person, the sequence of activity can not be violated
-    
-    m1.addConstrs((x[i,j,ve]==0 
-                for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) for ve in range(num_cav)
-                if expected_arrival_time[j]-expected_arrival_time[i]<-30)
-                 ,'TripIearlerthanTripj') #
+
     # #####################################
     # Objective Function
     obj1=sum(x.sum(i,'*',"*")*R[i] for i in range(hh_num_trips+1))
     obj2=S.sum()
-    obj3=sum(x.sum(i,j,"*")*C[i,j] for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2))
+    obj3=sum(x.sum(i,j,"*",ti)*C[i,j,ti] for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) for ti in range(num_time_interval))
     if reward_mode==0 and time_window_flag !=1 :
         m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
     else:
@@ -111,24 +134,30 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     for i in range(2*hh_num_trips+2):
         for j in range(2*hh_num_trips+2):
             for ve in range(num_cav):
-                x[i,j,ve].start=0
+                for ti in range(num_time_interval):
+                    x[i,j,ve,ti].start=0
     # x["*","*","*"].start=0
-
-    x[0,1,0].start=1
-    x[1,1+hh_num_trips,0].start=1
+    expected_arrival_time_interval=math.floor(expected_arrival_time[0]/(1440/num_time_interval))
+    x[0,1,0,expected_arrival_time_interval].start=1
+    expected_arrival_time_interval=math.floor(expected_arrival_time[1+hh_num_trips]/(1440/num_time_interval))
+    x[1,1+hh_num_trips,0,expected_arrival_time_interval].start=1
     last_node=1+hh_num_trips
     for i in range(2*hh_num_trips+2):
         T[i].start=expected_arrival_time[i]
         S[i].start=0
     for i in range(2,1+hh_num_trips):
-        if expected_arrival_time[last_node]+TT[last_node,i]<expected_arrival_time[i]:
-            x[last_node,i,0].start=1
-            x[i,i+hh_num_trips,0].start=1
+        expected_arrival_time_interval=math.floor(expected_arrival_time[last_node]/(1440/num_time_interval))
+        print(i,expected_arrival_time[i],expected_arrival_time_interval)
+        if expected_arrival_time[last_node]+TT[last_node,i,expected_arrival_time_interval]<expected_arrival_time[i]:
+            x[last_node,i,0,expected_arrival_time_interval].start=1
+            expected_arrival_time_interval=math.floor(expected_arrival_time[i]/(1440/num_time_interval))
+            x[i,i+hh_num_trips,0,expected_arrival_time_interval].start=1
             last_node=i+hh_num_trips
         else: 
-            x[last_node,i,0].start=0
-            x[i,i+hh_num_trips,0].start=0
-    x[last_node,2*hh_num_trips+1,0].start=1
+            for ti in range(num_time_interval):
+                x[last_node,i,0,ti].start=0
+                x[i,i+hh_num_trips,0,ti].start=0
+    x[last_node,2*hh_num_trips+1,0,num_time_interval-1].start=1
 
 #     print('The heuristic solution: ',obj1.getValue(),obj2.getValue(),obj3.getValue())
     
@@ -162,7 +191,168 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
         print('################################\nThe total reward is',obj1.getValue(),'\nThe delay cost is ',obj2.getValue(),'\nThe total travel cost is ', obj3.getValue())
         print(S[2*hh_num_trips].x)
        
-    return m1,x,T,obj1.getValue(),obj2.getValue(),obj3.getValue()
+    return m1,x,y,T,obj1.getValue(),obj2.getValue(),obj3.getValue()
+
+
+
+# def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
+#                     expected_arrival_time,early_penalty,late_penalty,
+#                     early_penalty_threshold,late_penalty_threshold,R,Vehicular_Skim,
+#                     share_ride_factor,output_flag,run_mode,reward_mode,
+#                     num_cav,num_time_interval,cav_use_mode,time_window_flag,single_model_runtime):
+#     '''
+#     This function is the mixed integer programing for the dial and ride problem. Serveral run mode are defined
+#     run_mode: 
+#     0 basic formulation soft time window
+#     1 mode choice extension
+#     2 schedule rescheduling
+#     cav_use_mode:
+#         0 if all num_cav must be used
+#         1 if num_cav is the upper limite
+#     '''
+#     m1=Model("AVSchedule")
+#     # x=m1.addVars(2*hh_num_trips+2,2*hh_num_trips+2,num_cav,vtype=GRB.BINARY,name="x")
+#     x=m1.addVars(2*hh_num_trips+2,2*hh_num_trips+2,num_cav,num_time_interval,vtype=GRB.BINARY,name="x")
+#     T=m1.addVars(2*hh_num_trips+2,name="T") #T represent the expected arrivial time at a node
+#     S=m1.addVars(2*hh_num_trips+2,name="S")
+#     # B=traveler_trips[traveler_trips['hh_id']==household]['starttime'].max()-traveler_trips[traveler_trips['hh_id']==household]['starttime'].min()
+#     B=1440+Vehicular_Skim.Time.max()
+#     #Add constraints
+#     ###################################
+#     #Basic deliver and pickup constraints
+# #     m1.addConstrs((x.sum(i,'*')==1 for i in range(1,hh_num_trips+1)),"forcepickupalldemand")
+#     if share_ride_factor<=1:
+#         m1.addConstrs((x.sum('*',i,ve,'*')==x[i,i+hh_num_trips,ve,'*'] for i in range(1,hh_num_trips+1) for ve in range(num_cav)),'bansharedride')
+#     # if num_cav==1:
+#     if cav_use_mode==0: #All vehicles must be used
+#         m1.addConstrs((x.sum(i,'*',ve,'*')==1 for i in [0] for ve in range(num_cav)),"FromDepot2")
+#         m1.addConstrs((x.sum('*',i,ve,'*')==1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3") 
+#     else: #Not all vehicles must be used
+#         m1.addConstrs((x.sum(i,'*',ve,'*')<=1 for i in [0] for ve in range(num_cav)),"FromDepot2")
+#         m1.addConstrs((x.sum('*',i,ve,'*')<=1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3")
+
+#     m1.addConstrs((x.sum(i,'*',"*",'*')>=1 for i in [0] ),"oneFromDepot2")
+#     m1.addConstrs((x.sum('*',i,"*",'*')>=1 for i in [2*hh_num_trips+1] ),"oneToDepot3") 
+#     # else:
+#     #     m1.addConstrs((x.sum(i,'*')==num_cav for i in [0]),"FromDepotlessthannumpoav2")
+#     #     m1.addConstrs((x.sum('*',i)==num_cav for i in [2*hh_num_trips+1]),"ToDepotlessthannumpoav3") 
+#         # m1.addConstrs((x.sum(i,'*')>=1 for i in [0]),"FromDepot2")
+#         # m1.addConstrs((x.sum('*',i)>=1 for i in [2*hh_num_trips+1]),"ToDepot3") 
+    
+#     m1.addConstrs((x.sum(i,"*",ve)==x.sum("*",i+hh_num_trips,ve) for i in range(1,hh_num_trips+1) for ve in range(num_cav)),"DemandbeDelivered11")
+#     if reward_mode==0 and time_window_flag !=1: #if reward mode is zero then force the cav to pick up all target trips
+#         m1.addConstrs((x.sum(i,"*","*")<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
+#         m1.addConstrs((x.sum("*",j,"*")<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
+#     else: 
+#         m1.addConstrs((x.sum(i,"*","*")<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
+#         m1.addConstrs((x.sum("*",j,"*")<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
+
+#     m1.addConstrs((x.sum("*",i,ve)==x.sum(i,"*",ve) for i in range(1,2*hh_num_trips+1) for ve in range(num_cav)),"FlowConvervative14")
+#     m1.addConstrs((x[i,i,ve]==0 for i in range(2*hh_num_trips+2) for ve in range(num_cav)),"NoSamePointCircleVisit")
+#     # ###################################
+#     #Time constratins
+#     if time_window_flag==1: #exact arrvial time
+#         m1.addConstrs((T[i]==expected_arrival_time[i] for i in range(1,2*hh_num_trips+2)),'ExactStartTime')
+# #     if force_serve_factor==1: #Force visit all nodes
+# #         m1.addConstrs((x.sum(i,"*")==1 for i in range(2*hh_num_trips+1)),"allnodemustbeserved")
+#     m1.addConstrs((T[j]-T[i]-B*x[i,j,ve]>=TT[i,j]-B for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) for ve in range(num_cav)),"precedencet15")
+#     # m1.addConstrs((T[i+hh_num_trips]-T[i]-B*x.sum(i,"*","*")>=(TT[i,i+hh_num_trips]-B) for i in range(1,hh_num_trips+1)),"deliverafterpickup16")
+#     m1.addConstrs((T[i+hh_num_trips]-T[i]>=(TT[i,i+hh_num_trips]) for i in range(1,hh_num_trips+1)),"deliverafterpickup16")
+#     m1.addConstrs((T[i+hh_num_trips]-T[i]<=share_ride_factor*TT[i,i+hh_num_trips] for i in range(1,hh_num_trips+1)),"triptimecannotexcceed1.5expectedtraveltime")
+    
+#     # ####################################
+#     # #Late/Early Arrival penalty
+#     m1.addConstrs((S[i]>=early_penalty[i]*(expected_arrival_time[i]-T[i]) for i in range(2*hh_num_trips+2)),'earlyarrivalpenalty')
+#     m1.addConstrs((S[i]>=late_penalty[i]*(T[i]-expected_arrival_time[i]) for i in range(2*hh_num_trips+2)),'latearrivalpenalty')
+#     m1.addConstrs((S[i]>=2*early_penalty[i]*(expected_arrival_time[i]-T[i])-early_penalty[i]*early_penalty_threshold[i] for i in range(2*hh_num_trips+2)),'earlyarrivaloverthrespenalty')
+#     m1.addConstrs((S[i]>=2*late_penalty[i]*(T[i]-expected_arrival_time[i])-late_penalty[i]*late_penalty_threshold[i] for i in range(2*hh_num_trips+2)),'latearrivaloverthrespenalty')
+# #     m1.addConstrs((T[i]==expected_arrival_time[i] for i in [2*hh_num_trips]),'test123')
+#     # ####################################
+#     # Special Constraints for this problem
+
+#     m1.addConstrs((T[j]-T[i+hh_num_trips]-B*(x.sum("*",i,"*")+x.sum("*",j,"*")-1)>=-B 
+#                         for i in range(1,hh_num_trips+1) for j in range(i+1,hh_num_trips+1)
+#                         if sorted_trips.iloc[i-1]['person_id']==sorted_trips.iloc[j-1]['person_id']),
+#                         'personal_sequence_consistent'
+#                  ) # For the same person, the sequence of activity can not be violated
+    
+#     m1.addConstrs((x[i,j,ve]==0 
+#                 for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) for ve in range(num_cav)
+#                 if expected_arrival_time[j]-expected_arrival_time[i]<-30)
+#                  ,'TripIearlerthanTripj') #
+#     # #####################################
+#     # Objective Function
+#     obj1=sum(x.sum(i,'*',"*")*R[i] for i in range(hh_num_trips+1))
+#     obj2=S.sum()
+#     obj3=sum(x.sum(i,j,"*")*C[i,j] for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2))
+#     if reward_mode==0 and time_window_flag !=1 :
+#         m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
+#     else:
+#         m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
+
+#     m1.setParam(GRB.Param.OutputFlag,output_flag)
+#     m1.Params.TIME_LIMIT=single_model_runtime
+    
+#     ###############################################################
+#     #warm start with heuristic
+#     for i in range(2*hh_num_trips+2):
+#         for j in range(2*hh_num_trips+2):
+#             for ve in range(num_cav):
+#                 x[i,j,ve].start=0
+#     # x["*","*","*"].start=0
+
+#     x[0,1,0].start=1
+#     x[1,1+hh_num_trips,0].start=1
+#     last_node=1+hh_num_trips
+#     for i in range(2*hh_num_trips+2):
+#         T[i].start=expected_arrival_time[i]
+#         S[i].start=0
+#     for i in range(2,1+hh_num_trips):
+#         if expected_arrival_time[last_node]+TT[last_node,i]<expected_arrival_time[i]:
+#             x[last_node,i,0].start=1
+#             x[i,i+hh_num_trips,0].start=1
+#             last_node=i+hh_num_trips
+#         else: 
+#             x[last_node,i,0].start=0
+#             x[i,i+hh_num_trips,0].start=0
+#     x[last_node,2*hh_num_trips+1,0].start=1
+
+# #     print('The heuristic solution: ',obj1.getValue(),obj2.getValue(),obj3.getValue())
+    
+#     #Check if the warm start is an feasible solution
+# #     x_temp=np.zeros((2*hh_num_trips+2,2*hh_num_trips+2))
+# #     x_temp[0,1]=1
+# #     x_temp[1,1+hh_num_trips]=1
+# #     last_node=1+hh_num_trips
+# #     T_temp=expected_arrival_time
+# #     for i in range(2,1+hh_num_trips):
+# #         if expected_arrival_time[last_node]+TT[last_node,i]<expected_arrival_time[i]:
+# #             x_temp[last_node,i]=1
+# #             x_temp[i,i+hh_num_trips]=1
+# #             last_node=i+hh_num_trips
+# #         else: 
+# #             x_temp[last_node,i]=0
+# #             x_temp[i,i+hh_num_trips]=0
+# #     for i in range(2*hh_num_trips+2):
+# #         for j in range(2*hh_num_trips+2):
+# #             if expected_arrival_time[j]-expected_arrival_time[i]-B*x_temp[i,j]<TT[i,j]-B:
+# #                 print('****************************')
+# #                 print(i,j,expected_arrival_time[j]-expected_arrival_time[i]-B*x_temp[i,j]>=TT[i,j]-B,x_temp[i,j])
+# #                 print('****************************')
+# #     for i in range(1,hh_num_trips+1):
+# #         for j in range(i+1,hh_num_trips+1):
+# #             if sorted_trips.iloc[i-1]['person_id']==sorted_trips.iloc[j-1]['person_id']:
+# #                 if 
+#     ###############################################################
+#     m1.optimize()
+#     if output_flag>0:
+#         print('################################\nThe total reward is',obj1.getValue(),'\nThe delay cost is ',obj2.getValue(),'\nThe total travel cost is ', obj3.getValue())
+#         print(S[2*hh_num_trips].x)
+       
+#     return m1,x,T,obj1.getValue(),obj2.getValue(),obj3.getValue()
+
+
+
 
 
 def break_route_to_seg(route_info,superzone_map,vehicle_id):
@@ -204,19 +394,19 @@ def veh_seg_index_creator(x):
     return str(int(x[0]))+'_'+str(int(x[1]))
 
 
-def find_av_schedule_exact_method(target_hh_id,traveler_trips,Vehicular_Skim,superzone_map,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk,output_flag,drivingcost_per_mile):
+def find_av_schedule_exact_method(target_hh_id,traveler_trips,Vehicular_Skim,superzone_map,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk,output_flag,drivingcost_per_mile,num_time_interval):
     target_hh=traveler_trips[traveler_trips['hh_id']==target_hh_id].drop_duplicates(subset=['orig_maz','dest_maz','orig_purpose','dest_purpose','starttime','joint_trip_flag'])
     #Sort all trips based on start time. This step could reduce the solving time and make it easier to track
     sorted_trips=target_hh.sort_values("starttime")
     #hh_index give an index to all trips within the household for tracking purpose
     sorted_trips["hh_index"]=(range(hh_num_trips))
     
-    num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone=prd.extract_hh_information(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile)
+    num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone=prd.extract_hh_information(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile,num_time_interval)
 #     R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk)
     R=prd.estimate_trip_reward(hh_num_trips,sorted_trip,Vehicular_Skim,reward_mode,superzone_map)
     m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
                             R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,reward_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
-    route_info=extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav)
+    route_info=extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav,num_time_interval)
     return route_info
 
 def get_route_info_allhh(traveler_trips,output_flag):
@@ -239,16 +429,15 @@ def get_route_info_allhh(traveler_trips,output_flag):
             if not route_info.empty:
                 route_infos=route_infos.append(route_info)
     return  route_infos
-def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav):
+def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,
+    expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode):
     '''
     This function extract route information from the MIP solution and convert the x, T in to trip list.
     '''
     #Check the feasibility of the answer
     #route_dic store the optimiztion model solution as a dictionary. The keys are the upstream node index and the answer is
     #the corresponding downstream node index
-    hh_id=sorted_trips['hh_id'].iloc[0]
-    
-    
+    hh_id=sorted_trips['hh_id'].iloc[0]    
     route_info=pd.DataFrame()
     for ve in range(num_cav):
         route_node=[0]
@@ -264,7 +453,13 @@ def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_n
         potential_next_node=set(range(1,2*hh_num_trips+1))
         while potential_next_node != set():
             for node in potential_next_node: 
-                if x[route_node[-1],node,ve].x>0.91:
+                if run_mode<2: 
+                    x_variable_temp=x[route_node[-1],node,ve].x
+                else:
+                    x_variable_temp=x.sum(route_node[-1],node,ve,'*').getValue()
+                    print(x_variable_temp,route_node[-1],node,ve)
+                if x_variable_temp>0.91:
+                    print(route_node[-1],node,ve)
                     if (route_node[-1]==0): #Initialize the traveler list when it is the depot
                         traveler_set=set()
                         travelers.extend([0])
@@ -371,7 +566,7 @@ def flatten(sub_sorted_trips):
     
 def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,min_length,max_length,
                                     reward_mode,drivingcost_per_mile,share_ride_factor,output_flag,run_mode,num_cav,
-                                    cav_use_mode,time_window_flag,single_model_runtime):
+                                    cav_use_mode,time_window_flag,single_model_runtime,num_time_interval,TL,TU):
 #     sub_sorted_trips=[item for sublist in schedule_partition(sorted_trips,Vehicular_Skim,min_length,max_length) for item in sublist]
     sub_sorted_trips=flatten(schedule_partition(sorted_trips,Vehicular_Skim,min_length,max_length,superzone_map))
     route_info=pd.DataFrame()
@@ -383,19 +578,27 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Sk
     total_schedule_penalty=0 #The total penalty for early/late arrival
     total_travel_cost=0
     for sub_sorted_trip in sub_sorted_trips:
-        num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone=prd.extract_hh_information(sub_sorted_trip,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile)
+        num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone=prd.extract_hh_information(sub_sorted_trip,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile,num_time_interval)
         # R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk)
         R=prd.estimate_trip_reward(hh_num_trips,sub_sorted_trip,Vehicular_Skim,reward_mode,superzone_map,drivingcost_per_mile)
     
         print('start sovling problem at ',datetime.datetime.now())
-        m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sub_sorted_trip,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
-                                R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,reward_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
-        
+        if run_mode<2:
+            m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sub_sorted_trip,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
+                                    R,Vehicular_Skim,share_ride_factor,output_flag,run_mode,reward_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
+        else:
+            m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,sub_sorted_trip,
+                expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,R,Vehicular_Skim,
+                share_ride_factor,output_flag,run_mode,reward_mode,num_cav,num_time_interval,cav_use_mode,time_window_flag,single_model_runtime)
+                        
         print('finish solving problem at ',datetime.datetime.now())
-        sub_route_info=extract_route_from_model_solution(x,T,sub_sorted_trip,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav)
+        sub_route_info=extract_route_from_model_solution(x,T,sub_sorted_trip,visit_candidate_zone,hh_num_trips,expected_arrival_time,
+            expected_leave_time,superzone_map,num_cav,num_time_interval)
         total_tailing_sub_trips_length=len(sorted_trips)-total_previous_sub_trips_length-len(sub_sorted_trip)
-        sub_route_info['orig_node_index']=sub_route_info.orig_node_index.apply(lambda x: x+total_previous_sub_trips_length if x<=hh_num_trips else x+2*total_previous_sub_trips_length+total_tailing_sub_trips_length) 
-        sub_route_info['dest_node_index']=sub_route_info.dest_node_index.apply(lambda x: x+total_previous_sub_trips_length if x<=hh_num_trips else x+2*total_previous_sub_trips_length+total_tailing_sub_trips_length) 
+        sub_route_info['orig_node_index']=sub_route_info.orig_node_index.apply(
+            lambda x: x+total_previous_sub_trips_length if x<=hh_num_trips else x+2*total_previous_sub_trips_length+total_tailing_sub_trips_length) 
+        sub_route_info['dest_node_index']=sub_route_info.dest_node_index.apply(
+            lambda x: x+total_previous_sub_trips_length if x<=hh_num_trips else x+2*total_previous_sub_trips_length+total_tailing_sub_trips_length) 
         total_previous_sub_trips_length=total_previous_sub_trips_length+len(sub_sorted_trip)
         route_info=route_info.append(sub_route_info)
         total_reward+=obj1_value
