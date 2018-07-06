@@ -31,6 +31,22 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
     y=m1.addVars(hh_num_trips+1,hh_num_trips+1,vtype=GRB.BINARY,name='y')
     T=m1.addVars(2*hh_num_trips+2,name="T") #T represent the expected arrivial time at a node
     S=m1.addVars(2*hh_num_trips+2,name="S")
+    # Preprocess
+   
+    # for ve in range(num_cav):
+    #     for ti in range(num_time_interval):
+    #         for i in range(1,hh_num_trips+1):
+    #             x[0,i+hh_num_trips,ve,ti].ub=0      #No trip go directly from depot to a delivery node
+    #             x[i,2*hh_num_trips+1,ve,ti].ub=0    #No trip go directly from a pickup node to depot
+    #             x[hh_num_trips+i,i,ve,ti].ub=0      #No trip go directly from a delivery node back to associated pickup node
+    #             x[i,i,ve,ti].ub=0                   #No trip between the same node
+    #             for j in range(2*hh_num_trips+2):
+    #                 if (TT[i,j,ti]+TT[j,i+hh_num_trips,ti]>share_ride_factor*TT[i,i+hh_num_trips,ti]):
+    #                     x[i,j,ve,ti].ub=0
+    #                     x[j,i+hh_num_trips,ve,ti].ub=0
+    #         for i in range(hh_num_trips+1,2*hh_num_trips+2):         
+    #             x[i,i,ve,ti].ub=0
+    
     # B=traveler_trips[traveler_trips['hh_id']==household]['starttime'].max()-traveler_trips[traveler_trips['hh_id']==household]['starttime'].min()
     B=1440+Vehicular_Skim.Time.max()
     #Add constraints
@@ -52,7 +68,8 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
     m1.addConstrs((x.sum('*',i,"*",'*')>=1 for i in [2*hh_num_trips+1] ),"oneToDepot3") 
 
     
-    m1.addConstrs((x.sum(i,"*",ve,"*")==x.sum("*",i+hh_num_trips,ve,"*") for i in range(1,hh_num_trips+1) for ve in range(num_cav)),"DemandbeDelivered11")
+    m1.addConstrs((x.sum(i,"*",ve,"*")==x.sum("*",i+hh_num_trips,ve,"*") 
+        for i in range(1,hh_num_trips+1) for ve in range(num_cav)),"DemandbeDelivered11")
     if reward_mode==0 and time_window_flag !=1: #if reward mode is zero then force the cav to pick up all target trips
         m1.addConstrs((x.sum(i,"*","*",'*')==1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
         m1.addConstrs((x.sum("*",j,"*",'*')==1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
@@ -60,8 +77,9 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
         m1.addConstrs((x.sum(i,"*","*",'*')<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
         m1.addConstrs((x.sum("*",j,"*",'*')<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
 
-    m1.addConstrs((x.sum("*",i,ve,'*')==x.sum(i,"*",ve,'*') for i in range(1,2*hh_num_trips+1) for ve in range(num_cav)),"FlowConvervative14")
-    m1.addConstrs((x.sum(i,i,ve,ti)==0 for i in range(2*hh_num_trips+2) for ve in range(num_cav) for ti in range(num_time_interval)),"NoSamePointCircleVisit")
+    m1.addConstrs((x.sum("*",i,ve,'*')==x.sum(i,"*",ve,'*') 
+        for i in range(1,2*hh_num_trips+1) for ve in range(num_cav)),"FlowConvervative14")
+    # m1.addConstrs((x.sum(i,i,ve,ti)==0 for i in range(2*hh_num_trips+2) for ve in range(num_cav) for ti in range(num_time_interval)),"NoSamePointCircleVisit")
     # ###################################
     #Time constratins
     if time_window_flag==1: #exact arrvial time
@@ -80,7 +98,7 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
     m1.addConstrs((T[i+hh_num_trips]-T[i]-B<=share_ride_factor*TT[i,i+hh_num_trips,ti]-B*x.sum(i,'*','*',ti) 
         for i in range(1,hh_num_trips+1) 
         for ti in range(num_time_interval)),"triptimecannotexcceed1.5expectedtraveltime")
-    
+    m1.addConstrs((x[i,i,ve,ti]==0 for i in range(2*hh_num_trips+2) for ve in range(num_cav) for ti in range(num_time_interval)),"NoSamePointCircleVisit")
     # ####################################
     # #Late/Early Arrival penalty
     m1.addConstrs((S[i]>=early_penalty[i]*(expected_arrival_time[i]-T[i]) for i in range(2*hh_num_trips+2)),'earlyarrivalpenalty')
@@ -107,10 +125,10 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
             for i in range(2*hh_num_trips+2) for ti in range(num_time_interval)),'get_time_interval1')
         m1.addConstrs((T[i]-TL[ti]*x.sum(i,'*','*',ti)>=0 
             for i in range(2*hh_num_trips+2) for ti in range(num_time_interval)),'get_time_interval2')
-        m1.addConstrs((T[k]-T[i+hh_num_trips]-(x.sum(k,'*','*','*')+x.sum(i,'*','*','*')-1)*B
-            >=TT[i,k,ti]*x.sum(i,'*','*',ti)-B-B*y[i,k] 
-            for i in range(1,hh_num_trips+1) for k in range(1,hh_num_trips+1) for ti in range(num_time_interval))
-            ,if sorted_trips.iloc[i-1]['person_id']==sorted_trips.iloc[k-1]['person_id']
+        m1.addConstrs((T[k]-T[i+hh_num_trips]-(x.sum(k,'*','*',ti)+x.sum(i,'*','*',ti)-1)*B
+            >=TT[i+hh_num_trips,k,ti]*x.sum(i,'*','*',ti)-B-B*y[i,k] 
+            for i in range(1,hh_num_trips+1) for k in range(1,hh_num_trips+1) for ti in range(num_time_interval)
+             if sorted_trips.iloc[i-1]['person_id']==sorted_trips.iloc[k-1]['person_id'])
             ,'activity_sequence'
         )
         m1.addConstrs((y[i,j]==1-y[j,i]) for i in range(1,hh_num_trips+1) for j in range(i+1,hh_num_trips+1))
@@ -136,29 +154,60 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
             for ve in range(num_cav):
                 for ti in range(num_time_interval):
                     x[i,j,ve,ti].start=0
+    x_temp=np.zeros((2*hh_num_trips+2,2*hh_num_trips+2,num_cav,num_time_interval))
+    # print(int(x[0,0,0,0].start))
     # x["*","*","*"].start=0
     expected_arrival_time_interval=math.floor(expected_arrival_time[0]/(1440/num_time_interval))
     x[0,1,0,expected_arrival_time_interval].start=1
+    x_temp[0,1,0,expected_arrival_time_interval]=1
     expected_arrival_time_interval=math.floor(expected_arrival_time[1+hh_num_trips]/(1440/num_time_interval))
     x[1,1+hh_num_trips,0,expected_arrival_time_interval].start=1
+    x_temp[1,1+hh_num_trips,0,expected_arrival_time_interval]=1
     last_node=1+hh_num_trips
     for i in range(2*hh_num_trips+2):
         T[i].start=expected_arrival_time[i]
         S[i].start=0
     for i in range(2,1+hh_num_trips):
         expected_arrival_time_interval=math.floor(expected_arrival_time[last_node]/(1440/num_time_interval))
-        print(i,expected_arrival_time[i],expected_arrival_time_interval)
+        
         if expected_arrival_time[last_node]+TT[last_node,i,expected_arrival_time_interval]<expected_arrival_time[i]:
             x[last_node,i,0,expected_arrival_time_interval].start=1
+            x_temp[last_node,i,0,expected_arrival_time_interval]=1
+
+            # print(1,last_node,i,0,expected_arrival_time_interval, x[last_node,i,0,expected_arrival_time_interval].ub)
             expected_arrival_time_interval=math.floor(expected_arrival_time[i]/(1440/num_time_interval))
             x[i,i+hh_num_trips,0,expected_arrival_time_interval].start=1
+            x_temp[i,i+hh_num_trips,0,expected_arrival_time_interval]=1
+            # print(2,i,i+hh_num_trips,0,expected_arrival_time_interval,x[i,i+hh_num_trips,0,expected_arrival_time_interval].ub)
             last_node=i+hh_num_trips
         else: 
             for ti in range(num_time_interval):
                 x[last_node,i,0,ti].start=0
                 x[i,i+hh_num_trips,0,ti].start=0
     x[last_node,2*hh_num_trips+1,0,num_time_interval-1].start=1
+    x_temp[last_node,2*hh_num_trips+1,0,num_time_interval-1]=1
 
+     
+    # y_temp=np.ones((hh_num_trips+1,hh_num_trips+1))
+    # for i in range(1,hh_num_trips+1):
+    #     for j in range(1,hh_num_trips+1):
+    #         if i<j:
+    #             y_temp[i,j]=0
+
+    # for i in range(1,hh_num_trips+1):
+    #     for k in range(1,hh_num_trips+1):
+    #         for ti in range(num_time_interval):
+    #             if sorted_trips.iloc[i-1]['person_id']==sorted_trips.iloc[k-1]['person_id']:
+    #                 if i!=k:
+    #                     if (expected_arrival_time[k]-expected_arrival_time[i+hh_num_trips]-
+    #                     (x_temp.sum(axis=1).sum(axis=1)[k,ti]+x_temp.sum(axis=1).sum(axis=1)[i,ti]-1)*B
+    #                     <TT[i+hh_num_trips,k,ti]*x_temp.sum(axis=1).sum(axis=1)[i,ti]-B-B*y_temp[i,k] ):
+    #                         print(i,k,ti,expected_arrival_time[k],expected_arrival_time[i+hh_num_trips]
+    #                             ,x_temp.sum(axis=1).sum(axis=1)[k,ti],x_temp.sum(axis=1).sum(axis=1)[i,ti]
+    #                             ,TT[i,k,ti],x_temp.sum(axis=1).sum(axis=1)[i,ti],y_temp[i,k])
+
+    # print(x[last_node,2*hh_num_trips+1,0,num_time_interval-1].ub)
+    
 #     print('The heuristic solution: ',obj1.getValue(),obj2.getValue(),obj3.getValue())
     
     #Check if the warm start is an feasible solution

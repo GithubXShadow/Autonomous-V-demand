@@ -448,6 +448,11 @@ def distance_between_nodes(node_ID1,node_ID2,node_xy):
         distance=0.01
     return distance
 def travel_time_between_nodes(node_ID1,node_ID2,node_xy):
+    '''
+    node_ID1: the node id of upstream node
+    node_ID2: the node id of downstream node
+    node_xy: the latitude and longtitude of node
+    '''
     origin_lat_long=str(-nodexy[node_ID1][1])+","+str(nodexy[node_ID1][0])
     destination_lat_long=str(-nodexy[node_ID2][1])+","+str(nodexy[node_ID2][0])
     url="https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial&origins="+origin_lat_long+"&destinations="+destination_lat_long+"&key=AIzaSyBw112JGqCiFB4jF_1Sc0iH7mXCIzRXlI8"
