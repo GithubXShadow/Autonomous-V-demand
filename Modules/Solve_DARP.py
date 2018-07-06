@@ -505,9 +505,7 @@ def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_n
                     x_variable_temp=x[route_node[-1],node,ve].x
                 else:
                     x_variable_temp=x.sum(route_node[-1],node,ve,'*').getValue()
-                    print(x_variable_temp,route_node[-1],node,ve)
                 if x_variable_temp>0.91:
-                    print(route_node[-1],node,ve)
                     if (route_node[-1]==0): #Initialize the traveler list when it is the depot
                         traveler_set=set()
                         travelers.extend([0])

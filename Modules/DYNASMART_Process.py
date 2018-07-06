@@ -404,7 +404,7 @@ def find_orign_destination_node(origin_zone,destination_zone,origins,destination
     #Find the origin node where the trip starts
     num_or_candidates=len(origins[origins['zone_id']==origin_zone].index)
     if num_or_candidates<=1:
-        print(num_or_candidates,origin_zone)
+        print('Number of candidate is zero',num_or_candidates,origin_zone)
     origin_node=origins[origins['zone_id']==origin_zone].iloc[random.randint(0, num_or_candidates-1)]['nodes']
     #Find the destination node where the trip ends
     num_des_candidates=len(destinations[destinations['zone_id']==destination_zone].index)
@@ -418,7 +418,7 @@ def add_od_node_all_travelers(traveler_trips):
     origin_node=[]
     destination_node=[]
     for index, row in traveler_trips.iterrows():
-        print(row['orig_taz'],row['dest_taz'])
+        # print(row['orig_taz'],row['dest_taz'])
         or_temp,dest_temp=find_orign_destination_node(row['orig_taz'],row['dest_taz'])
         origin_node.extend([or_temp])
         destination_node.extend([dest_temp])
