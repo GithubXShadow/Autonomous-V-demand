@@ -33,19 +33,19 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
     S=m1.addVars(2*hh_num_trips+2,name="S")
     # Preprocess
    
-    # for ve in range(num_cav):
-    #     for ti in range(num_time_interval):
-    #         for i in range(1,hh_num_trips+1):
-    #             x[0,i+hh_num_trips,ve,ti].ub=0      #No trip go directly from depot to a delivery node
-    #             x[i,2*hh_num_trips+1,ve,ti].ub=0    #No trip go directly from a pickup node to depot
-    #             x[hh_num_trips+i,i,ve,ti].ub=0      #No trip go directly from a delivery node back to associated pickup node
-    #             x[i,i,ve,ti].ub=0                   #No trip between the same node
-    #             for j in range(2*hh_num_trips+2):
-    #                 if (TT[i,j,ti]+TT[j,i+hh_num_trips,ti]>share_ride_factor*TT[i,i+hh_num_trips,ti]):
-    #                     x[i,j,ve,ti].ub=0
-    #                     x[j,i+hh_num_trips,ve,ti].ub=0
-    #         for i in range(hh_num_trips+1,2*hh_num_trips+2):         
-    #             x[i,i,ve,ti].ub=0
+    for ve in range(num_cav):
+        for ti in range(num_time_interval):
+            for i in range(1,hh_num_trips+1):
+                x[0,i+hh_num_trips,ve,ti].ub=0      #No trip go directly from depot to a delivery node
+                x[i,2*hh_num_trips+1,ve,ti].ub=0    #No trip go directly from a pickup node to depot
+                x[hh_num_trips+i,i,ve,ti].ub=0      #No trip go directly from a delivery node back to associated pickup node
+                x[i,i,ve,ti].ub=0                   #No trip between the same node
+                for j in range(2*hh_num_trips+2):
+                    if (TT[i,j,ti]+TT[j,i+hh_num_trips,ti]>share_ride_factor*TT[i,i+hh_num_trips,ti]):
+                        x[i,j,ve,ti].ub=0
+                        x[j,i+hh_num_trips,ve,ti].ub=0
+            for i in range(hh_num_trips+1,2*hh_num_trips+2):         
+                x[i,i,ve,ti].ub=0
     
     # B=traveler_trips[traveler_trips['hh_id']==household]['starttime'].max()-traveler_trips[traveler_trips['hh_id']==household]['starttime'].min()
     B=1440+Vehicular_Skim.Time.max()
