@@ -677,3 +677,51 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Sk
     darp_solution['time_window_flag']=time_window_flag
     return darp_solution
 
+def solve_with_VNS(initial_route_info,num_hh_member,hh_num_trips,C,TT,sorted_trips,
+                    expected_arrival_time,early_penalty,late_penalty,
+                    early_penalty_threshold,late_penalty_threshold,R,Vehicular_Skim,
+                    share_ride_factor,output_flag,run_mode,reward_mode,
+                    num_cav,cav_use_mode,time_window_flag,single_model_runtime,max_iter ):
+    '''
+        After getting an initial solution, this function update the solution with a variable neighborhood heuristic
+        Shacking method:
+        M: Move neighborhood
+        S: Swap neighborhood
+        C: Chain neighborhood
+        Z: Zero  split neighborhood
+    '''
+    #Initial heuristic
+    iter_num=0
+    #while stopping critiera is not met
+    while iter_num<max_iter:
+        #shaking
+        for i in range(5):
+            print(i)
+            #move neighborhood
+            #swap neighborhood
+            #chain neighborhood
+            #zero split neighborhood
+        #local search
+        #update neighborhood 
+    return 
+def extract_solution_from_route_info(initial_route_info,hh_num_trips,num_cav):
+    x_sol=np.zeros((hh_num_trips,hh_num_trips,num_cav))
+    T
+def evaluate_solution(x_sol,T_sol,R,TT,C):
+
+    return
+def evaluate_penalty(T_sol,expected_arrival_time):
+
+    return 
+def move_neighborhood(shake_size):
+
+    return
+
+def swap_neighborhood(shake_size):
+    return
+
+def chain_neighborhood(shake_size):
+    return
+
+def zero_split_neighborhood():
+    return
