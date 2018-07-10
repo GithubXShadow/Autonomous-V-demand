@@ -8,8 +8,7 @@ from Modules import AV_functions as av
 from Modules import Preprocess_DARP as prd
 from gurobipy import *
 import datetime
-
-
+import random
 def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,sorted_trips,
                     expected_arrival_time,early_penalty,late_penalty,
                     early_penalty_threshold,late_penalty_threshold,R,Vehicular_Skim,
@@ -25,7 +24,7 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
         0 if all num_cav must be used
         1 if num_cav is the upper limite
     '''
-    m1=Model("AVSchedule")
+    m1=Model("AVSchedule_seq_adjust")
     # x=m1.addVars(2*hh_num_trips+2,2*hh_num_trips+2,num_cav,vtype=GRB.BINARY,name="x")
     x=m1.addVars(2*hh_num_trips+2,2*hh_num_trips+2,num_cav,num_time_interval,vtype=GRB.BINARY,name="x")
     y=m1.addVars(hh_num_trips+1,hh_num_trips+1,vtype=GRB.BINARY,name='y')
@@ -281,7 +280,7 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
         m1.addConstrs((x.sum('*',i,ve)<=1 for i in [2*hh_num_trips+1] for ve in range(num_cav)),"ToDepot3")
 
     m1.addConstrs((x.sum(i,'*',"*")>=1 for i in [0] ),"oneFromDepot2")
-    m1.addConstrs((x.sum('*',i,"*",)>=1 for i in [2*hh_num_trips+1] ),"oneToDepot3") 
+    m1.addConstrs((x.sum('*',i,"*")>=1 for i in [2*hh_num_trips+1] ),"oneToDepot3") 
     
     
     m1.addConstrs((x.sum(i,"*",ve)==x.sum("*",i+hh_num_trips,ve) for i in range(1,hh_num_trips+1) for ve in range(num_cav)),"DemandbeDelivered11")
@@ -449,7 +448,8 @@ def find_av_schedule_exact_method(target_hh_id,traveler_trips,Vehicular_Skim,sup
     #hh_index give an index to all trips within the household for tracking purpose
     sorted_trips["hh_index"]=(range(hh_num_trips))
     
-    num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone=prd.extract_hh_information(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile,num_time_interval)
+    num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone\
+    =prd.extract_hh_information(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile,num_time_interval)
 #     R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk)
     R=prd.estimate_trip_reward(hh_num_trips,sorted_trip,Vehicular_Skim,reward_mode,superzone_map)
     m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
@@ -495,8 +495,7 @@ def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_n
         start_time=[]
         dest_expected_arrival_time=[]
         origin_arrival_time=[]
-        dest_arrival_time=[]
-        orig_node=[]
+        dest_arrival_time=[]       
         dest_node=[]
         potential_next_node=set(range(1,2*hh_num_trips+1))
         while potential_next_node != set():
@@ -524,9 +523,6 @@ def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_n
                             activity_time.extend([0])
                         else:
                             travelers.extend([list(traveler_set)[0]])
-    #                     print(route_node[-1],node,sorted_trips.iloc[route_node[-1]-1-hh_num_trips]['person_id'],traveler_set)
-    #                 print(traveler_set,travelers)
-        
                     if traveler_set !=set():
                         vot.extend([sorted_trips[sorted_trips.person_id==travelers[-1]]['value_of_time'].iloc[0]])
                         activity_time.extend([max(0,expected_leave_time[node]-expected_arrival_time[node])])
@@ -535,7 +531,7 @@ def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_n
                     origin_arrival_time.extend([T[route_node[-1]].x])
                     dest_arrival_time.extend([T[node].x])
                     dest_expected_arrival_time.extend([expected_arrival_time[node]])
-                    orig_node.extend([sorted_trips])
+                   
                     route_node.extend([node])
                     break
             if route_node[-1] in potential_next_node:
@@ -563,7 +559,7 @@ def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_n
 #     sorted_trips.iloc[max(i for i in [route_info_temp.orig_node_index,route_info_temp.orig_node_index-hh_num_trips] if i >0)].person_id !=
 # sorted_trips.iloc[max(i for i in [route_info_temp.dest_node_index,route_info_temp.dest_node_index-hh_num_trips] if i >0)].person_id
         if not route_info_temp.empty:
-            route_info_temp=break_route_to_seg(route_info_temp,superzone_map,ve)
+            route_info_temp=break_route_to_seg(route_info_temp,superzone_map,int(ve))
         route_info=route_info.append(route_info_temp)
     
     return route_info
@@ -617,8 +613,8 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Sk
     sub_sorted_trips=flatten(schedule_partition(sorted_trips,Vehicular_Skim,min_length,max_length,superzone_map))
     route_info=pd.DataFrame()
    
-    total_previous_sub_trips_length=0
-    total_tailing_sub_trips_length=0
+    total_previous_sub_trips_length=int(0)
+    total_tailing_sub_trips_length=int(0)
     schedule_deviation=[]
     total_reward=0
     total_schedule_penalty=0 #The total penalty for early/late arrival
@@ -641,12 +637,12 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Sk
         print('finish solving problem at ',datetime.datetime.now())
         sub_route_info=extract_route_from_model_solution(x,T,sub_sorted_trip,visit_candidate_zone,hh_num_trips,expected_arrival_time,
             expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode)
-        total_tailing_sub_trips_length=len(sorted_trips)-total_previous_sub_trips_length-len(sub_sorted_trip)
+        total_tailing_sub_trips_length=int(len(sorted_trips)-total_previous_sub_trips_length-len(sub_sorted_trip))
         sub_route_info['orig_node_index']=sub_route_info.orig_node_index.apply(
             lambda x: x+total_previous_sub_trips_length if x<=hh_num_trips else x+2*total_previous_sub_trips_length+total_tailing_sub_trips_length) 
         sub_route_info['dest_node_index']=sub_route_info.dest_node_index.apply(
             lambda x: x+total_previous_sub_trips_length if x<=hh_num_trips else x+2*total_previous_sub_trips_length+total_tailing_sub_trips_length) 
-        total_previous_sub_trips_length=total_previous_sub_trips_length+len(sub_sorted_trip)
+        total_previous_sub_trips_length=int(total_previous_sub_trips_length+len(sub_sorted_trip))
         route_info=route_info.append(sub_route_info)
         total_reward+=obj1_value
         total_schedule_penalty+=obj2_value
@@ -679,7 +675,7 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Sk
 
 def solve_with_VNS(initial_route_info,num_hh_member,hh_num_trips,C,TT,sorted_trips,
                     expected_arrival_time,early_penalty,late_penalty,
-                    early_penalty_threshold,late_penalty_threshold,R,Vehicular_Skim,
+                    early_penalty_threshold,late_penalty_threshold,R,Vehicular_Skim_Dict,
                     share_ride_factor,output_flag,run_mode,reward_mode,
                     num_cav,cav_use_mode,time_window_flag,single_model_runtime,max_iter ):
     '''
@@ -692,11 +688,12 @@ def solve_with_VNS(initial_route_info,num_hh_member,hh_num_trips,C,TT,sorted_tri
     '''
     #Initial heuristic
     iter_num=0
+    x_sol,T_sol=extract_solution_from_route_info(initial_route_info,hh_num_trips,num_cav)
     #while stopping critiera is not met
     while iter_num<max_iter:
         #shaking
         for i in range(5):
-            print(i)
+        
             #move neighborhood
             #swap neighborhood
             #chain neighborhood
@@ -705,23 +702,139 @@ def solve_with_VNS(initial_route_info,num_hh_member,hh_num_trips,C,TT,sorted_tri
         #update neighborhood 
     return 
 def extract_solution_from_route_info(initial_route_info,hh_num_trips,num_cav):
-    x_sol=np.zeros((hh_num_trips,hh_num_trips,num_cav))
-    T
+    x_sol=np.zeros((2*hh_num_trips+2,2*hh_num_trips+2,num_cav))
+    T_sol=np.zeros((2*hh_num_trips+2))
+    for i in range(num_cav): #Set the link to/from depot
+        x_sol[0,initial_route_info.loc[initial_route_info.hh_vehicle_id==i].orig_node_index.iloc[0],i]=1
+        x_sol[initial_route_info.loc[initial_route_info.hh_vehicle_id==i].dest_node_index.iloc[-1],2*hh_num_trips+1,i]=1
+        print(initial_route_info.loc[initial_route_info.hh_vehicle_id==i].dest_node_index.iloc[-1],2*hh_num_trips+1,i)
+
+    x_sol[[initial_route_info.orig_node_index,
+           initial_route_info.dest_node_index,
+           initial_route_info.hh_vehicle_id]]=1 #
+    for i in range(num_cav):
+        temp=initial_route_info.loc[initial_route_info.hh_vehicle_id==i]         
+        x_sol[temp[:-1].dest_node_index,
+              temp[1:].orig_node_index,
+              temp[1:].hh_vehicle_id]=1
+    x_sol[[i for i in range(2*hh_num_trips+2)],
+    [i for i in range(2*hh_num_trips+2)],
+    :]=0
+    T_sol[initial_route_info.orig_node_index]=initial_route_info.origin_arrival_time
+    T_sol[initial_route_info.dest_node_index]=initial_route_info.dest_arrival_time
+    return x_sol,T_sol
+
 def evaluate_solution(x_sol,T_sol,R,TT,C):
 
     return
 def evaluate_penalty(T_sol,expected_arrival_time):
 
     return 
-def move_neighborhood(shake_size):
+def move_neighborhood(x_sol,T_sol,initial_route_info,hh_num_trips,num_cav,shake_size,Vehicular_Skim_Dict,visit_candidate_zone,share_ride_factor):
+    #From each route 
+    
+    np.random.seed(seed=1)
+    for i in range(num_cav):
+        # Randomly select n=shake_size requests
+        target_request=np.random.choice(initial_route_info.loc[initial_route_info.hh_vehicle_id==i].orig_node_index,size=2)
+        target_nodes=[target_request[j]-hh_num_trips if target_request[j]>hh_num_trips
+                      else target_request[j]+hh_num_trips for j in range(shake_size)]
+        
+        target_nodes.extend([target_request[i] for i in range(shake_size)])
+        target_nodes.sort()
+        
+        print('target nodes are',target_nodes)
+        # Remove the request from the route
+        x_sol=sod.random_remove_request(x_sol,target_nodes,i,hh_num_trips)
+        #Randomly select another route 
+        vehicle_list=list(range(num_cav))
+        vehicle_list.remove(i)
+        target_route=np.random.choice(vehicle_list)
+        # Insert the node one by one
+        for node in target_nodes[0:int(len(target_nodes)/2)]:
+            #First inseart before the first trip
+            upstream_node=0
+            downstream_node=initial_route_info.loc[initial_route_info.hh_vehicle_id==target_route].orig_node_index.iloc[0]
+            upstreamtimeinterval=1
+            downstreamtimeinterval=math.ceil(T_sol[downstream_node]/20.0)
+            best_tt=1440
+            for ti in range(upstreamtimeinterval,downstreamtimeinterval):                
+                tt=Vehicular_Skim_Dict[visit_candidate_zone[upstream_node]][visit_candidate_zone[node]][ti][1]
+                if tt<best_tt:
+                    best_tt=tt
+                    best_ti=ti
+            driving_time_limit=share_ride_factor*Vehicular_Skim_Dict[visit_candidate_zone[node]][visit_candidate_zone[node+hh_num_trips]][ti][1]
+
+            for (upstream_node,downstream_node) in zip(initial_route_info.loc[initial_route_info.hh_vehicle_id==target_route].orig_node_index,initial_route_info.loc[initial_route_info.hh_vehicle_id==target_route].dest_node_index):
+                x_sol_temp=x_sol
+                T_sol_temp=T_sol
+    #             x_sol_temp[upstream_node,,target_route]=
+    #             x_sol_temp
+    #             upstream_node=
+
+    #Inseart the request to the route
 
     return
 
-def swap_neighborhood(shake_size):
-    return
+def random_remove_request(x_sol,target_nodes,vehicle_id,hh_num_trips):
+    for node in target_nodes:
+        upstream_node=np.where(x_sol[:,node,vehicle_id]==1)
+        downstream_node=np.where(x_sol[node,:,vehicle_id]==1)
+        if node==1:
+            upstream_node=0
+        elif node==2*hh_num_trips:
+            downstream_node=2*hh_num_trips+1
+        x_sol[upstream_node,downstream_node,vehicle_id]=1
+        x_sol[upstream_node,node,vehicle_id]=0
+        x_sol[node,downstream_node,vehicle_id]=0
+    return x_sol
 
-def chain_neighborhood(shake_size):
-    return
 
-def zero_split_neighborhood():
-    return
+
+def optimal_start_time(sorted_trips,x_sol,T_sol,hh_num_trips,expected_arrival_time,Vehicular_Skim_Dict,
+    visit_candidate_zone,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,superzone_map):
+    m3=Model("Optimal_Start_Time")
+    T=m3.addVars(2*hh_num_trips+2,name="T",vtype=GRB.CONTINUOUS) #T represent the expected arrivial time at a node
+    S=m3.addVars(2*hh_num_trips+2,name="S") 
+    x=m3.addVars(2*hh_num_trips+2,2*hh_num_trips+2,72,name='x',vtype=GRB.BINARY)
+    m3.setObjective(S.sum(),GRB.MINIMIZE)
+    print(1,datetime.datetime.now())
+    m3.addConstrs((S[i]>=early_penalty[i]*(expected_arrival_time[i]-T[i]) for i in range(2*hh_num_trips+2)),'earlyarrivalpenalty')
+    m3.addConstrs((S[i]>=late_penalty[i]*(T[i]-expected_arrival_time[i]) for i in range(2*hh_num_trips+2)),'latearrivalpenalty')
+    m3.addConstrs((S[i]>=2*early_penalty[i]*(expected_arrival_time[i]-T[i])-early_penalty[i]*early_penalty_threshold[i] 
+        for i in range(2*hh_num_trips+2)),'earlyarrivaloverthrespenalty')
+    m3.addConstrs((S[i]>=2*late_penalty[i]*(T[i]-expected_arrival_time[i])-late_penalty[i]*late_penalty_threshold[i] 
+        for i in range(2*hh_num_trips+2)),'latearrivaloverthrespenalty')
+    m3.addConstrs((x.sum(i,j,'*')==x_sol[i,j] for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2)),'sameasx_sol')
+    ti=list(range(1,73)) #number of skim time interval
+    route_seq_dict={i:j for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) if x_sol[i,j] > 0.5}
+    upstream_node_index=0
+    current_time=1
+    T[0].start=current_time
+    while upstream_node_index in route_seq_dict:
+        downstream_node_index=route_seq_dict[upstream_node_index]
+        if downstream_node_index==upstream_node_index-hh_num_trips+1 and upstream_node_index <2*hh_num_trips and\
+         sorted_trips.iloc[upstream_node_index-hh_num_trips-1].person_id == sorted_trips.iloc[downstream_node_index-1].person_id:
+                C=0
+                TT=0
+        else:
+            TT=[Vehicular_Skim_Dict[visit_candidate_zone[upstream_node_index]][superzone_map[visit_candidate_zone[downstream_node_index]]][i][1]['Time'] for i in ti ]
+            ti_temp=math.ceil(current_time/20)
+            latest_ti=math.ceil(T_sol[down])
+            if (early_penalty[downstream_node_index]==0 and late_penalty[downstream_node_index]==0):
+                TT_temp=[Vehicular_Skim_Dict[visit_candidate_zone[downstream_node_index]]\
+                [superzone_map[visit_candidate_zone[route_seq_dict[downstream_node_index]]]][i][1]['Time'] for i in ti ]
+                
+            else: #set the arrival time at the downstream node to the T_sol or the earliest possible arrival time (whichever is latter)
+                
+                current_time=max(current_time+TT[ti_temp-1],T_sol[downstream_node_index])
+                T[downstream_node_index].start=current_time
+                x[upstream_node_index,downstream_node_index,ti_temp-1].start=1   
+
+            m3.addConstrs((T[upstream_node_index]+TT[k]*x[upstream_node_index,downstream_node_index,k]<=T[downstream_node_index] 
+                for k in range(72)),'arrival_time'+str(upstream_node_index))
+            m3.setPWLObj(T[upstream_node_index],ti,TT)
+        upstream_node_index=downstream_node_index
+    m3.update()
+    m3.optimize()
+    return m3,T,S         

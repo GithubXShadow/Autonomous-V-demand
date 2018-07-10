@@ -248,7 +248,8 @@ def estimate_trip_reward(hh_num_trips,sorted_trips,Vehicular_Skim,reward_mode,su
         R=150*np.ones(1+hh_num_trips)
     return R
 
-def extract_hh_information(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile,num_time_interval):
+def extract_hh_information(sorted_trips,Vehicular_Skim,Transit_AB_Cost_Skim,superzone_map,
+    drivingcost_per_mile,num_time_interval):
     '''
     Get the household related information. Those information will be used as input
     for the optimization model

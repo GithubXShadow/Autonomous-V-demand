@@ -155,7 +155,6 @@ def read_vehicle_skim(skim_folder_path):
                 NumSkimIntervals=line.split()[0]
             elif i==1 and 'TAZ' in line:
                 NumSkimOriginZone=line.split()[0]
-
     NumSkimIntervals=int(NumSkimIntervals)
     NumSkimOriginZone=int(NumSkimOriginZone)
     print(NumSkimSuperZone,NumSkimOriginZone,NumSkimIntervals)
@@ -177,6 +176,15 @@ def read_vehicle_skim(skim_folder_path):
     Cost=[]
     Time=[]
     Dist=[]
+    #Vehicular_Skim_Dict for fast speed
+    Vehicular_Skim_Dict={}
+    for O in range(1,NumSkimOriginZone+1):
+        Vehicular_Skim_Dict[O]={}
+        for D in range(1,NumSkimSuperZone+1):
+            Vehicular_Skim_Dict[O][D]={}
+            for T in range(1,NumSkimIntervals+1):
+                Vehicular_Skim_Dict[O][D][T]={}
+
     for D in range(1,NumSkimSuperZone+1): #D is the destination 
 #         print('read',D,datetime.datetime.now())
         with open(skim_folder_path+'/'+str(D)+'.dat') as f: 
@@ -186,6 +194,7 @@ def read_vehicle_skim(skim_folder_path):
                 line_list=line.split()
                 Num_VOT=int(line_list[0])
                 for j in range(1,Num_VOT+1): 
+
                     Os.extend([int(O)])
                     Ds.extend([int(D)])
                     Ts.extend([int(T)])
@@ -194,13 +203,21 @@ def read_vehicle_skim(skim_folder_path):
                     Cost.extend([float(line_list[4*j-2])])
                     Time.extend([float(line_list[4*j-1])])
                     Dist.extend([float(line_list[4*j])])
+
+                    Vehicular_Skim_Dict[O][D][T][j]={}
+                    Vehicular_Skim_Dict[O][D][T][j]['VOT']=float(line_list[4*j-3])
+                    Vehicular_Skim_Dict[O][D][T][j]['Cost']=float(line_list[4*j-2])
+                    Vehicular_Skim_Dict[O][D][T][j]['Time']=float(line_list[4*j-1])
+                    Vehicular_Skim_Dict[O][D][T][j]['Dist']=float(line_list[4*j])
+
+
     Vehicular_Skim=pd.DataFrame(data={'O':Os,'D':Ds,'TI':Ts ,'VotIndex':VotNo,'Vot':VotValue
                                      ,'Cost':Cost,'Time':Time,'Dist':Dist})    
 
 
     Vehicular_Skim.set_index(['O', 'D','TI','VotIndex'], inplace=True)
     Vehicular_Skim.sort_index(inplace=True)
-    return Vehicular_Skim
+    return Vehicular_Skim,Vehicular_Skim_Dict
 def read_transit_setting(transit_setting_filepath):
     f=open(transit_setting_filepath,'r')
     TransitMazTazFlag=int(next(f).split()[0])
