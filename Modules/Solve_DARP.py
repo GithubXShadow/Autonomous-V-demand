@@ -173,11 +173,10 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
             x[last_node,i,0,expected_arrival_time_interval].start=1
             x_temp[last_node,i,0,expected_arrival_time_interval]=1
 
-            # print(1,last_node,i,0,expected_arrival_time_interval, x[last_node,i,0,expected_arrival_time_interval].ub)
+           
             expected_arrival_time_interval=math.floor(expected_arrival_time[i]/(1440/num_time_interval))
             x[i,i+hh_num_trips,0,expected_arrival_time_interval].start=1
             x_temp[i,i+hh_num_trips,0,expected_arrival_time_interval]=1
-            # print(2,i,i+hh_num_trips,0,expected_arrival_time_interval,x[i,i+hh_num_trips,0,expected_arrival_time_interval].ub)
             last_node=i+hh_num_trips
         else: 
             for ti in range(num_time_interval):
@@ -428,7 +427,6 @@ def break_route_to_seg(route_info,superzone_map,vehicle_id):
     seg_temp=0
     i=1
     intrasuperzone_flag=[0]*len(route_info)
-    
     for index, row in route_info[1:].iterrows():    
         if(row.orig_zone==row.dest_zone or check_intrasuperzone(row.orig_zone,row.dest_zone,superzone_map)):
             seg_temp=seg_temp+1
@@ -440,10 +438,13 @@ def break_route_to_seg(route_info,superzone_map,vehicle_id):
             intrasuperzone_flag[i]=1
         seg_index.extend([seg_temp])
         i=i+1
-    route_info['seg_index']=seg_index
-    route_info['intrasuperzone_flag']=intrasuperzone_flag
-    route_info['hh_vehicle_id']=vehicle_id
-    route_info['veh_seg_index']=route_info.hh_id.astype(str)+"_"+route_info.seg_index.astype(str)+"_"+str(vehicle_id) #route_info[['hh_id','seg_index']].apply(lambda x: veh_seg_index_creator(x), axis=1)
+    route_info=route_info.assign(seg_index=seg_index, intrasuperzone_flag=intrasuperzone_flag,
+        hh_vehicle_id=vehicle_id)
+    route_info=route_info.assign(veg_seg_index=route_info.hh_id.astype(str)+"_"+route_info.seg_index.astype(str)+"_"+str(vehicle_id))
+    # route_info['seg_index']=seg_index
+    # route_info['intrasuperzone_flag']=intrasuperzone_flag
+    # route_info['hh_vehicle_id']=vehicle_id
+    # route_info['veh_seg_index']=route_info.hh_id.astype(str)+"_"+route_info.seg_index.astype(str)+"_"+str(vehicle_id) #route_info[['hh_id','seg_index']].apply(lambda x: veh_seg_index_creator(x), axis=1)
     return route_info
 
 def check_intrasuperzone(orig_taz,dest_taz,superzone_map):
@@ -466,19 +467,14 @@ def find_av_schedule_exact_method(target_hh_id,traveler_trips,output_flag,min_le
     #hh_index give an index to all trips within the household for tracking purpose
     hh_num_trips=sorted_trips.shape[0]
     sorted_trips["hh_index"]=(range(hh_num_trips))
-    print(1,datetime.datetime.now())
     num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone\
     =prd.extract_hh_information(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile,num_time_interval)
 #     R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk)
-    print(2,datetime.datetime.now())
     R=prd.estimate_trip_reward(hh_num_trips,sorted_trips,Vehicular_Skim_Dict,reward_mode,superzone_map,drivingcost_per_mile)
-    print(3,datetime.datetime.now())
     m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
                 expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
                 R,Vehicular_Skim_Dict,share_ride_factor,output_flag,run_mode,reward_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
-    print(4,datetime.datetime.now())
     route_info=extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode)
-    print(5,datetime.datetime.now())
     return route_info
 
 def get_route_info_allhh(traveler_trips,output_flag,min_length,max_length,single_model_runtime,drivingcost_per_mile,
@@ -510,7 +506,7 @@ def get_route_info_allhh(traveler_trips,output_flag,min_length,max_length,single
         darp_solutions.extend([solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Cost_Skim,superzone_map,min_length,max_length,
                                     reward_mode,drivingcost_per_mile,share_ride_factor,output_flag,run_mode,num_cav,
                                   cav_use_mode,time_window_flag,single_model_runtime,num_time_interval,TL,TU)])
-        print(counter,hh_num_trips,datetime.datetime.now())
+        # print(counter,hh_num_trips,datetime.datetime.now())
         route_info=darp_solutions[-1]['route_info']
         if not route_info.empty:
             route_infos=route_infos.append(route_info)
@@ -524,64 +520,45 @@ def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_n
     #Check the feasibility of the answer
     #route_dic store the optimiztion model solution as a dictionary. The keys are the upstream node index and the answer is
     #the corresponding downstream node index
+
     hh_id=sorted_trips['hh_id'].iloc[0]    
     route_info=pd.DataFrame()
     for ve in range(num_cav):
+        if run_mode<2:
+            route_seq_dict={i:j for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) if x[i,j,ve].x > 0.5}
+        else:
+            route_seq_dict={i:j for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) for ti in num_time_interval if x[i,j,ve,ti].x > 0.5}
         route_node=[0]
-        travelers=[]
-        vot=[]
-        activity_time=[]
-        start_time=[]
-        dest_expected_arrival_time=[]
-        origin_arrival_time=[]
-        dest_arrival_time=[]       
-        dest_node=[]
-        potential_next_node=set(range(1,2*hh_num_trips+1))
-        while potential_next_node != set():
-            for node in potential_next_node: 
-                if run_mode<2: 
-                    x_variable_temp=x[route_node[-1],node,ve].x
+        upstream_node=0
+        while upstream_node in route_seq_dict:
+            route_node.extend([route_seq_dict[upstream_node]])
+            upstream_node=route_node[-1]
+        route_node=route_node[:-1]
+        travelers_set=set()
+        travelers=[0]
+        for node in route_node[:-1]:
+            if node<hh_num_trips+1 and node>0:
+                travelers_set.add(sorted_trips.iloc[node-1]['person_id'])
+                travelers.extend([sorted_trips.iloc[node-1]['person_id']])
+            elif node<2*hh_num_trips+1 and node>hh_num_trips:
+                travelers_set.remove(sorted_trips.iloc[node-1-hh_num_trips]['person_id'])
+                if travelers_set==set():
+                    travelers.extend([0])
                 else:
-                    x_variable_temp=x.sum(route_node[-1],node,ve,'*').getValue()
-                if x_variable_temp>0.91:
-                    if (route_node[-1]==0): #Initialize the traveler list when it is the depot
-                        traveler_set=set()
-                        travelers.extend([0])
-                        vot.extend([0.01])
-                        activity_time.extend([0])
-                    elif (route_node[-1]<=hh_num_trips): # If the trip starts from an origin node
-    #                     print(traveler_set,sorted_trips.iloc[route_node[-1]-1]['person_id'])
-                        traveler_set.add(sorted_trips.iloc[route_node[-1]-1]['person_id'])
-                        travelers.extend([sorted_trips.iloc[route_node[-1]-1]['person_id']])
-    #                     print(route_node[-1],node,sorted_trips.iloc[route_node[-1]-1]['person_id'],traveler_set)
-                    else: #if the trip starts from a destination node
-                        traveler_set.remove(sorted_trips.iloc[route_node[-1]-1-hh_num_trips]['person_id'])
-                        if traveler_set ==set():
-                            travelers.extend([0])
-                            vot.extend([0.01])
-                            activity_time.extend([0])
-                        else:
-                            travelers.extend([list(traveler_set)[0]])
-                    if traveler_set !=set():
-                        vot.extend([sorted_trips[sorted_trips.person_id==travelers[-1]]['value_of_time'].iloc[0]])
-                        activity_time.extend([max(0,expected_leave_time[node]-expected_arrival_time[node])])
-    #                     vot.extend([sorted_trips.iloc[route_node[-1]-1]['value_of_time']])
-                    start_time.extend([expected_leave_time[route_node[-1]]])
-                    origin_arrival_time.extend([T[route_node[-1]].x])
-                    dest_arrival_time.extend([T[node].x])
-                    dest_expected_arrival_time.extend([expected_arrival_time[node]])
-                   
-                    route_node.extend([node])
-                    break
-            if route_node[-1] in potential_next_node:
-                potential_next_node.remove(route_node[-1])
-            else:
-                potential_next_node=set()
-                # print('*******************************')
-               
-                # print(sum([x[i,j].x for i in potential_next_node for j in range(1,2*hh_num_trips+1)]))
-                # print('*******************************')
+                    travelers.extend([list(travelers_set)[0]])
+        vot=[0.01 if traveler==0 
+             else sorted_trips[sorted_trips.person_id==traveler]['value_of_time'].iloc[0]
+            for traveler in travelers]
+        
+        activity_time=[0 if travelers[i]==0 
+             else max(0,expected_leave_time[route_node[i+1]]-expected_arrival_time[route_node[i+1]])
+            for i in range(len(travelers))]
+        start_time=[expected_leave_time[route_node[i-1]] for i in range(1,len(route_node))]
+        origin_arrival_time=[T[route_node[i-1]].x for i in range(1,len(route_node))] 
+        dest_arrival_time= [T[node].x for node in route_node[1:]]
+        dest_expected_arrival_time=[expected_arrival_time[node] for node in route_node[1:]]
         route=[visit_candidate_zone[x] for x in route_node]
+        
         route_info_temp=pd.DataFrame({'orig_zone':route[1:-1],'dest_zone':route[2:],'person_id':travelers[1:],
                                  'orig_node_index':route_node[1:-1],'dest_node_index':route_node[2:],
                                  'origin_arrival_time':origin_arrival_time[1:],'dest_arrival_time':dest_arrival_time[1:],
@@ -591,16 +568,17 @@ def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_n
                                 columns=['orig_zone','dest_zone','orig_node_index','dest_node_index',
                                          'person_id','origin_arrival_time','dest_arrival_time','dest_expected_arrival_time','value_of_time'
                                          ,'start_time','Activity_Time','hh_id'])
+       
         # Drop the trip between a person's current destination and next trips's origin, as those are the same node
         route_info_temp=route_info_temp.loc[((route_info_temp.orig_node_index-route_info_temp.dest_node_index!=hh_num_trips-1)
                                    | (route_info_temp.orig_zone!=route_info_temp.dest_zone)
                                   |(route_info_temp.start_time!=route_info_temp.dest_expected_arrival_time)) ] 
-#     sorted_trips.iloc[max(i for i in [route_info_temp.orig_node_index,route_info_temp.orig_node_index-hh_num_trips] if i >0)].person_id !=
-# sorted_trips.iloc[max(i for i in [route_info_temp.dest_node_index,route_info_temp.dest_node_index-hh_num_trips] if i >0)].person_id
+    #     sorted_trips.iloc[max(i for i in [route_info_temp.orig_node_index,route_info_temp.orig_node_index-hh_num_trips] if i >0)].person_id !=
+    # sorted_trips.iloc[max(i for i in [route_info_temp.dest_node_index,route_info_temp.dest_node_index-hh_num_trips] if i >0)].person_id
         if not route_info_temp.empty:
             route_info_temp=break_route_to_seg(route_info_temp,superzone_map,int(ve))
         route_info=route_info.append(route_info_temp)
-    
+        
     return route_info
 
 
