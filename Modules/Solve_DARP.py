@@ -145,7 +145,7 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
 
     m1.setParam(GRB.Param.OutputFlag,output_flag)
     m1.Params.TIME_LIMIT=single_model_runtime
-    
+    m1.Params.MITGap=0.01
     ###############################################################
     #warm start with heuristic
     for i in range(2*hh_num_trips+2):
@@ -270,7 +270,7 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     #Basic deliver and pickup constraints
 #     m1.addConstrs((x.sum(i,'*')==1 for i in range(1,hh_num_trips+1)),"forcepickupalldemand")
     if share_ride_factor<=1:
-        m1.addConstrs((x.sum('*',i,ve)==x[i,i+hh_num_trips,ve,'*'] for i in range(1,hh_num_trips+1) for ve in range(num_cav)),'bansharedride')
+        m1.addConstrs((x.sum('*',i,ve)==x[i,i+hh_num_trips,ve] for i in range(1,hh_num_trips+1) for ve in range(num_cav)),'bansharedride')
     # if num_cav==1:
     if cav_use_mode==0: #All vehicles must be used
         m1.addConstrs((x.sum(i,'*',ve)==1 for i in [0] for ve in range(num_cav)),"FromDepot2")
@@ -339,7 +339,7 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
 
     m1.setParam(GRB.Param.OutputFlag,output_flag)
     m1.Params.TIME_LIMIT=single_model_runtime
-    
+    m1.setParam(GRB.Param.MIPGap,0.01)
 
     ##############################################################
     # Preprocessing
@@ -417,34 +417,44 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
 
 
 
-def break_route_to_seg(route_info,superzone_map,vehicle_id):
+def break_route_to_seg(route_info,superzone_map):
     '''
     This function break the route of an av into segements for DYNASMART depends on the travelers. 
     The function is called by extract_route_from_model_solution
     '''
-    
+    route_info=route_info.sort_values(by=['hh_id','hh_vehicle_id','origin_arrival_time'])
     seg_index=[0]
     seg_temp=0
+    last_hh_id=route_info.iloc[0]['hh_id']
+    last_vehicle_id=0
     i=1
     intrasuperzone_flag=[0]*len(route_info)
-    for index, row in route_info[1:].iterrows():    
-        if(row.orig_zone==row.dest_zone or check_intrasuperzone(row.orig_zone,row.dest_zone,superzone_map)):
-            seg_temp=seg_temp+1
-        elif((row.person_id != route_info.iloc[i-1].person_id) 
-           or (route_info.iloc[i-1].orig_zone==route_info.iloc[i-1].dest_zone)
-            or (check_intrasuperzone(route_info.iloc[i-1].orig_zone,route_info.iloc[i-1].dest_zone,superzone_map))):
-            seg_temp=seg_temp+1
-        if(check_intrasuperzone(row.orig_zone,row.dest_zone,superzone_map) and row.orig_zone!=row.dest_zone ):
-            intrasuperzone_flag[i]=1
+    for index, row in route_info[1:].iterrows():   
+        if row.hh_id != last_hh_id or row.hh_vehicle_id !=last_vehicle_id:
+            seg_temp=0
+            
+            last_hh_id=row.hh_id
+            last_vehicle_id=row.hh_vehicle_id
+            last_hh_id=row.hh_id
+        else:
+            if(row.orig_zone==row.dest_zone or check_intrasuperzone(row.orig_zone,row.dest_zone,superzone_map)):
+                seg_temp=seg_temp+1
+            elif((row.person_id != route_info.iloc[i-1].person_id) 
+               or (route_info.iloc[i-1].orig_zone==route_info.iloc[i-1].dest_zone)
+                or (check_intrasuperzone(route_info.iloc[i-1].orig_zone,route_info.iloc[i-1].dest_zone,superzone_map))
+                or (row.dest_zone==route_info.iloc[i-1].dest_zone)):
+                seg_temp=seg_temp+1
+            if(check_intrasuperzone(row.orig_zone,row.dest_zone,superzone_map) and row.orig_zone!=row.dest_zone ):
+                intrasuperzone_flag[i]=1
+        i+=1
         seg_index.extend([seg_temp])
-        i=i+1
-    route_info=route_info.assign(seg_index=seg_index, intrasuperzone_flag=intrasuperzone_flag,
-        hh_vehicle_id=vehicle_id)
-    route_info=route_info.assign(veg_seg_index=route_info.hh_id.astype(str)+"_"+route_info.seg_index.astype(str)+"_"+str(vehicle_id))
-    # route_info['seg_index']=seg_index
-    # route_info['intrasuperzone_flag']=intrasuperzone_flag
-    # route_info['hh_vehicle_id']=vehicle_id
-    # route_info['veh_seg_index']=route_info.hh_id.astype(str)+"_"+route_info.seg_index.astype(str)+"_"+str(vehicle_id) #route_info[['hh_id','seg_index']].apply(lambda x: veh_seg_index_creator(x), axis=1)
+        
+        
+
+    route_info=route_info.assign(seg_index=seg_index, intrasuperzone_flag=intrasuperzone_flag)
+    route_info=route_info.assign(veh_seg_index=route_info.hh_id.astype(str)+
+        "_"+route_info.seg_index.astype(str)+
+        "_"+route_info.hh_vehicle_id.astype(str))
     return route_info
 
 def check_intrasuperzone(orig_taz,dest_taz,superzone_map):
@@ -475,6 +485,8 @@ def find_av_schedule_exact_method(target_hh_id,traveler_trips,output_flag,min_le
                 expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
                 R,Vehicular_Skim_Dict,share_ride_factor,output_flag,run_mode,reward_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
     route_info=extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode)
+    if not route_info.empty:
+        route_info=break_route_to_seg(route_info,superzone_map)
     return route_info
 
 def get_route_info_allhh(traveler_trips,output_flag,min_length,max_length,single_model_runtime,drivingcost_per_mile,
@@ -506,7 +518,7 @@ def get_route_info_allhh(traveler_trips,output_flag,min_length,max_length,single
         darp_solutions.extend([solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Cost_Skim,superzone_map,min_length,max_length,
                                     reward_mode,drivingcost_per_mile,share_ride_factor,output_flag,run_mode,num_cav,
                                   cav_use_mode,time_window_flag,single_model_runtime,num_time_interval,TL,TU)])
-        # print(counter,hh_num_trips,datetime.datetime.now())
+        print(counter,hh_num_trips,datetime.datetime.now())
         route_info=darp_solutions[-1]['route_info']
         if not route_info.empty:
             route_infos=route_infos.append(route_info)
@@ -564,10 +576,10 @@ def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_n
                                  'origin_arrival_time':origin_arrival_time[1:],'dest_arrival_time':dest_arrival_time[1:],
                                  'dest_expected_arrival_time':dest_expected_arrival_time[1:],'value_of_time':vot[1:],
                                  'start_time':start_time[1:],'Activity_Time':activity_time[1:],
-                                 'hh_id':np.ones(len(route[1:-1]))*hh_id},
+                                 'hh_id':np.ones(len(route[1:-1]))*hh_id,'hh_vehicle_id':np.ones(len(route[1:-1]))*ve},
                                 columns=['orig_zone','dest_zone','orig_node_index','dest_node_index',
                                          'person_id','origin_arrival_time','dest_arrival_time','dest_expected_arrival_time','value_of_time'
-                                         ,'start_time','Activity_Time','hh_id'])
+                                         ,'start_time','Activity_Time','hh_id','hh_vehicle_id'])
        
         # Drop the trip between a person's current destination and next trips's origin, as those are the same node
         route_info_temp=route_info_temp.loc[((route_info_temp.orig_node_index-route_info_temp.dest_node_index!=hh_num_trips-1)
@@ -575,8 +587,7 @@ def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_n
                                   |(route_info_temp.start_time!=route_info_temp.dest_expected_arrival_time)) ] 
     #     sorted_trips.iloc[max(i for i in [route_info_temp.orig_node_index,route_info_temp.orig_node_index-hh_num_trips] if i >0)].person_id !=
     # sorted_trips.iloc[max(i for i in [route_info_temp.dest_node_index,route_info_temp.dest_node_index-hh_num_trips] if i >0)].person_id
-        if not route_info_temp.empty:
-            route_info_temp=break_route_to_seg(route_info_temp,superzone_map,int(ve))
+        
         route_info=route_info.append(route_info_temp)
         
     return route_info
@@ -642,11 +653,12 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
     total_schedule_penalty=0 #The total penalty for early/late arrival
     total_travel_cost=0
     for sub_sorted_trip in sub_sorted_trips:
+        
         num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone\
         =prd.extract_hh_information(sub_sorted_trip,Vehicular_Skim_Dict,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile,num_time_interval)
         # R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk)
         R=prd.estimate_trip_reward(hh_num_trips,sub_sorted_trip,Vehicular_Skim_Dict,reward_mode,superzone_map,drivingcost_per_mile)
-    
+        
         # print('start sovling problem at ',datetime.datetime.now())
         if run_mode<2:
             m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sub_sorted_trip,
@@ -656,7 +668,7 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
             m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,sub_sorted_trip,
                 expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,R,Vehicular_Skim_Dict,
                 share_ride_factor,output_flag,run_mode,reward_mode,num_cav,num_time_interval,cav_use_mode,time_window_flag,single_model_runtime)
-                        
+               
         # print('finish solving problem at ',datetime.datetime.now())
         sub_route_info=extract_route_from_model_solution(x,T,sub_sorted_trip,visit_candidate_zone,hh_num_trips,expected_arrival_time,
             expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode)
@@ -670,17 +682,18 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
         total_reward+=obj1_value
         total_schedule_penalty+=obj2_value
         total_travel_cost+=obj3_value
+        
 #         for index, row in route_info.iterrows():
 #             print(route_info.dest_expected_arrival_time,'\t',row.dest_arrival_time,'\t',row.start_time,'\t',T[row.dest_node_index].x)
 #         #Estimate the delay and early arrival
-    
+    if not route_info.empty:
+        route_info=break_route_to_seg(route_info,superzone_map)
     route_info.orig_zone=route_info.orig_zone.apply(lambda x: int(x))
     route_info.dest_zone=route_info.dest_zone.apply(lambda x: int(x))
     T_sol=np.ones(2*hh_num_trips+2)
     for i in range(2*hh_num_trips+2):
     #     print(int(T[i].x),'\t',expected_arrival_time[i],'\t',T[i].x-expected_arrival_time[i])
         T_sol[i]=T[i].x
-    
     schedule_deviation.extend(T_sol-expected_arrival_time)
     darp_solution={}
     darp_solution['route_info']=route_info
@@ -695,6 +708,7 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
     darp_solution['num_cav']=num_cav
     darp_solution['cav_use_mode']=cav_use_mode
     darp_solution['time_window_flag']=time_window_flag
+    
     return darp_solution
 
 def solve_with_VNS(initial_route_info,num_hh_member,hh_num_trips,C,TT,sorted_trips,

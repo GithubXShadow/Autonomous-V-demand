@@ -37,7 +37,7 @@ def read_network(path):
             num_links=int(line_list_temp[2])
             num_shortest_path=int(line_list_temp[3])
             zone_flag=int(line_list_temp[4])
-            link_id=np.zeros((num_nodes,num_nodes))
+            link_id=-np.ones((num_nodes,num_nodes))
         #Read the node information from network.dat
         elif len(line_list_temp)<3:
             node_list.append([int(line_list_temp[0]),int(line_list_temp[1])])
@@ -52,7 +52,7 @@ def read_network(path):
                     line_list_temp.insert(7,check[1])
             line_list_temp=[float(j) for j in line_list_temp]
             link_detail_list.append(line_list_temp)
-            link_id[node_id[line_list_temp[0]],node_id[line_list_temp[1]]]=i-num_nodes-1
+            link_id[node_id[line_list_temp[0]],node_id[line_list_temp[1]]]=int(i-num_nodes-1)
         i=i+1
         
     node_detail=np.matrix(node_list)

@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import math
 import matplotlib as plt
+import pickle
 from Modules import DYNASMART_Process as dy
 # import preprocessing_read_skim_file as rs
 from Modules import AV_functions as av
@@ -95,3 +96,10 @@ def plot_route_info_schedule(route_info,sorted_trips,num_cav):
 #     plt.pyplot.title(title)
     return 
 
+def save_obj(obj, name,file_path ):
+    with open(file_path+ name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+def load_obj(name,file_path ):
+    with open(file_path + name + '.pkl', 'rb') as f:
+        return pickle.load(f)

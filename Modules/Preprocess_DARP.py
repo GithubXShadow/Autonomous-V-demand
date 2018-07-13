@@ -132,7 +132,8 @@ def estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTi
         R.extend([min_transit_gc])
     return R
 
-def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,TransitMazTazFlag,three_link_walk,Transit_AB_Cost_Skim,TransitSkimTimeIntervalLength,WalkSpeed,output_flag):
+def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,TransitMazTazFlag,three_link_walk,
+    Transit_AB_Cost_Skim,Transit_AB_Time_Skim,TransitSkimTimeIntervalLength,WalkSpeed,output_flag):
     min_transit_gc=1440
     transit_gc_temp=1440
     transit_start_time_interval=math.ceil(trip_start_time/TransitSkimTimeIntervalLength)-1
@@ -140,8 +141,8 @@ def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,
     
     for otap in three_link_walk.loc[three_link_walk.three_link_zone==origin_zone].transit_zone:
         for dtap in three_link_walk.loc[three_link_walk.three_link_zone==dest_zone].transit_zone:
-            if (Transit_AB_Time_Skim.loc[(Transit_AB_Time_Skim.otap==otap) & 
-                                        (Transit_AB_Time_Skim.dtap==dtap)].empty) or (Transit_AB_Time_Skim.loc[(Transit_AB_Time_Skim.otap==otap) & (Transit_AB_Time_Skim.dtap==dtap),int(transit_start_time_interval)].item()==0):
+            if (Transit_AB_Time_Skim.loc[(Transit_AB_Time_Skim.otap==otap) & (Transit_AB_Time_Skim.dtap==dtap)].empty) or \
+            (Transit_AB_Time_Skim.loc[(Transit_AB_Time_Skim.otap==otap) & (Transit_AB_Time_Skim.dtap==dtap),int(transit_start_time_interval)].item()==0):
                 transit_gc_temp=1440
                 
             else:
@@ -199,12 +200,12 @@ def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,
 #     if output_flag==2:
 #         return opt_walk_time
 def estimate_single_car_trip_cost(origin_zone,dest_zone,trip_start_time,vot,Vehicular_Skim_Dict,return_flag,superzone_map,drivingcost_per_mile):
-    num_skim_interval=mat(Vehicular_Skim_Dict[1][1])
+    num_skim_interval=max(Vehicular_Skim_Dict[1][1])
     correlated_skim_time_interval=math.ceil(trip_start_time/num_skim_interval)
 
-    time_temp=Vehicular_Skim_Dict[origin_zone][superzone_map[dest_zone]][correlated_skim_time_interval][1]['Time'].item()
-    cost_temp=Vehicular_Skim_Dict[origin_zone][superzone_map[dest_zone]][correlated_skim_time_interval][1]['Cost'].item()
-    dist_temp=Vehicular_Skim_Dict[origin_zone][superzone_map[dest_zone]][correlated_skim_time_interval][1]['Dist'].item()
+    time_temp=Vehicular_Skim_Dict[origin_zone][superzone_map[dest_zone]][correlated_skim_time_interval][1]['Time']
+    cost_temp=Vehicular_Skim_Dict[origin_zone][superzone_map[dest_zone]][correlated_skim_time_interval][1]['Cost']
+    dist_temp=Vehicular_Skim_Dict[origin_zone][superzone_map[dest_zone]][correlated_skim_time_interval][1]['Dist']
     car_trip_cost=time_temp*(vot)+cost_temp+dist_temp*drivingcost_per_mile
     if return_flag==0:
         return car_trip_cost
@@ -215,19 +216,27 @@ def estimate_single_car_trip_cost(origin_zone,dest_zone,trip_start_time,vot,Vehi
     elif return_flag==3:
         return cost_temp
     
-def compare_mode_utlity(sorted_trips):
-    sorted_trips['transit_time']=sorted_trips.apply(lambda row: estimate_single_transit_trip_cost(row.orig_maz,row.dest_maz,row.starttime,row.value_of_time,TransitMazTazFlag,three_link_walk,Transit_AB_Cost_Skim,TransitSkimTimeIntervalLength,WalkSpeed,1),axis=1)
-    sorted_trips['transit_walk_time']=sorted_trips.apply(lambda row: estimate_single_transit_trip_cost(row.orig_maz,row.dest_maz,row.starttime,row.value_of_time,TransitMazTazFlag,three_link_walk,Transit_AB_Cost_Skim,TransitSkimTimeIntervalLength,WalkSpeed,2),axis=1)
-#     sorted_trips['transit_utility']=sorted_trips.apply(lambda row: estimate_single_transit_trip_cost(row.orig_maz,row.dest_maz,row.starttime,row.value_of_time,TransitMazTazFlag,three_link_walk,Transit_AB_Cost_Skim,TransitSkimTimeIntervalLength,WalkSpeed,0),axis=1)
-    sorted_trips['transit_utility']=R[1:]
-    sorted_trips['car_time']=sorted_trips.apply(lambda row: estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,Vehicular_Skim_Dict,2,superzone_map,drivingcost_per_mile),axis=1)
-    sorted_trips['car_dist']=sorted_trips.apply(lambda row: estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,Vehicular_Skim_Dict,1,superzone_map,drivingcost_per_mile),axis=1)
-    sorted_trips['toll_cost']=sorted_trips.apply(lambda row: estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,Vehicular_Skim_Dict,3,superzone_map,drivingcost_per_mile),axis=1)
-    sorted_trips['car_utility']=sorted_trips.apply(lambda row: (estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,Vehicular_Skim_Dict,0,superzone_map,drivingcost_per_mile)), axis=1)
+def compare_mode_utlity(sorted_trips,TransitMazTazFlag,three_link_walk,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,TransitSkimTimeIntervalLength,WalkSpeed,
+    Vehicular_Skim_Dict,superzone_map,drivingcost_per_mile):
+    sorted_trips['transit_time']=sorted_trips.apply(lambda row: estimate_single_transit_trip_cost(row.orig_maz,row.dest_maz,row.starttime,row.value_of_time,
+        TransitMazTazFlag,three_link_walk,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,TransitSkimTimeIntervalLength,WalkSpeed,1),axis=1)
+    sorted_trips['transit_walk_time']=sorted_trips.apply(lambda row: 
+        estimate_single_transit_trip_cost(row.orig_maz,row.dest_maz,row.starttime,row.value_of_time,
+        TransitMazTazFlag,three_link_walk,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,TransitSkimTimeIntervalLength,WalkSpeed,2),axis=1)
+    sorted_trips['transit_utility']=sorted_trips.apply(lambda row: estimate_single_transit_trip_cost(row.orig_maz,row.dest_maz,row.starttime,row.value_of_time,
+        TransitMazTazFlag,three_link_walk,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,TransitSkimTimeIntervalLength,WalkSpeed,0),axis=1)
+    # sorted_trips['transit_utility']=R[1:]
+    sorted_trips['car_time']=sorted_trips.apply(lambda row: estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,
+        Vehicular_Skim_Dict,2,superzone_map,drivingcost_per_mile),axis=1)
+    sorted_trips['car_dist']=sorted_trips.apply(lambda row: estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,
+        Vehicular_Skim_Dict,1,superzone_map,drivingcost_per_mile),axis=1)
+    sorted_trips['toll_cost']=sorted_trips.apply(lambda row: estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,
+        Vehicular_Skim_Dict,3,superzone_map,drivingcost_per_mile),axis=1)
+    sorted_trips['car_utility']=sorted_trips.apply(lambda row: (estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,
+        Vehicular_Skim_Dict,0,superzone_map,drivingcost_per_mile)), axis=1)
     sorted_trips['expected_mode']=sorted_trips.apply(lambda row: 'NonCar' if row.transit_utility<row.car_utility else 'Car',axis=1)
     sorted_trips['actual_mode']=sorted_trips.apply(lambda row: 'NonCar' if row.tripmode>6 else 'Car',axis=1 )
     sorted_trips['probablity_car']=sorted_trips.apply(lambda row: round(math.exp(-row.car_utility)/(math.exp(-row.car_utility)+math.exp(-row.transit_utility)),5),axis=1)
-    # sorted_trips['transit_time']=sorted_trips.apply(lambda row: )
     return sorted_trips
 
 def estimate_trip_reward(hh_num_trips,sorted_trips,Vehicular_Skim_Dict,reward_mode,superzone_map,drivingcost_per_mile):
