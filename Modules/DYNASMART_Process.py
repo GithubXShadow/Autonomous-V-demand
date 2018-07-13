@@ -287,6 +287,18 @@ def read_transitskim(transit_skim_folderpath):
     Transit_AB_Time_Skim=pd.DataFrame(data=time_temp,columns=column_name)
     return TransitMazTazFlag,drivingweight,walkingweight,TransitSkimTimeIntervalLength,MaxNumTransitSkimTimeInterval,WalkSpeed,transit_zone_candidates,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,three_link_walk
 
+def convert_skim_dataframe_to_dict(Transit_Skim,TransitSkimTimeIntervalLength):
+    Transit_Skim_Dict={}
+    for otap in Transit_Skim.otap.unique():
+        Transit_Skim_Dict[otap]={}
+        for dtap in Transit_Skim.dtap.unique():
+            Transit_Skim_Dict[otap][dtap]={}
+    #         for ti in range(int(1440/TransitSkimTimeIntervalLength)):
+    #             Transit_Skim_Dict[otap][dtap][ti]={}
+    for index,row in Transit_Skim.iterrows():
+        for ti in range(int(1440/TransitSkimTimeIntervalLength)):
+            Transit_Skim_Dict[row.otap][row.dtap][ti]=row[ti]
+    return Transit_Skim_Dict
 
 def read_superzone_info(superzone_filepath):
     i=0

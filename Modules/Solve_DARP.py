@@ -470,7 +470,7 @@ def veh_seg_index_creator(x):
 
 def find_av_schedule_exact_method(target_hh_id,traveler_trips,output_flag,min_length,max_length,single_model_runtime,drivingcost_per_mile,
                          reward_mode,run_mode,cav_use_mode,num_time_interval,num_cav,share_ride_factor
-                         ,time_window_flag,Vehicular_Skim_Dict,Transit_AB_Cost_Skim,superzone_map,TL,TU):
+                         ,time_window_flag,Vehicular_Skim_Dict,Transit_AB_Cost_Skim_Dict,superzone_map,TL,TU,transit_zone_dict):
     target_hh=traveler_trips[traveler_trips['hh_id']==target_hh_id].drop_duplicates(subset=['orig_maz','dest_maz','orig_purpose','dest_purpose','starttime','joint_trip_flag'])
     #Sort all trips based on start time. This step could reduce the solving time and make it easier to track
     sorted_trips=target_hh.sort_values("starttime")
@@ -478,9 +478,9 @@ def find_av_schedule_exact_method(target_hh_id,traveler_trips,output_flag,min_le
     hh_num_trips=sorted_trips.shape[0]
     sorted_trips["hh_index"]=(range(hh_num_trips))
     num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone\
-    =prd.extract_hh_information(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile,num_time_interval)
-#     R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk)
-    R=prd.estimate_trip_reward(hh_num_trips,sorted_trips,Vehicular_Skim_Dict,reward_mode,superzone_map,drivingcost_per_mile)
+    =prd.extract_hh_information(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Cost_Skim_Dict,superzone_map,drivingcost_per_mile,num_time_interval)
+#     R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim_Dict,Transit_AB_Time_Skim_Dict,transit_zone_candidates,three_link_walk_dict)
+    R=prd.estimate_trip_reward(hh_num_trips,sorted_trips,Vehicular_Skim_Dict,reward_mode,superzone_map,drivingcost_per_mile,transit_zone_dict)
     m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
                 expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
                 R,Vehicular_Skim_Dict,share_ride_factor,output_flag,run_mode,reward_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
@@ -491,7 +491,7 @@ def find_av_schedule_exact_method(target_hh_id,traveler_trips,output_flag,min_le
 
 def get_route_info_allhh(traveler_trips,output_flag,min_length,max_length,single_model_runtime,drivingcost_per_mile,
     reward_mode,run_mode,cav_use_mode,num_time_interval,num_cav,share_ride_factor,time_window_flag,
-    Vehicular_Skim_Dict,Transit_AB_Cost_Skim,superzone_map,TL,TU):
+    Vehicular_Skim_Dict,Transit_AB_Cost_Skim_Dict,superzone_map,TL,TU,transit_zone_dict):
     '''
     This function loops over all the household and find the optimal path for all of them. Return route_infos that 
     stores all the route related information for all households
@@ -515,9 +515,9 @@ def get_route_info_allhh(traveler_trips,output_flag,min_length,max_length,single
         sorted_trips["hh_index"]=(range(hh_num_trips))
         
         # sorted_trips=sorted_trips.loc[sorted_trips.tripmode<=6]
-        darp_solutions.extend([solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Cost_Skim,superzone_map,min_length,max_length,
+        darp_solutions.extend([solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Cost_Skim_Dict,superzone_map,min_length,max_length,
                                     reward_mode,drivingcost_per_mile,share_ride_factor,output_flag,run_mode,num_cav,
-                                  cav_use_mode,time_window_flag,single_model_runtime,num_time_interval,TL,TU)])
+                                  cav_use_mode,time_window_flag,single_model_runtime,num_time_interval,TL,TU,transit_zone_dict)])
         print(counter,hh_num_trips,datetime.datetime.now())
         route_info=darp_solutions[-1]['route_info']
         if not route_info.empty:
@@ -638,9 +638,9 @@ def flatten(sub_sorted_trips):
     else:
         return [a for i in sub_sorted_trips for a in flatten(i)]
     
-def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Cost_Skim,superzone_map,min_length,max_length,
+def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Cost_Skim_Dict,superzone_map,min_length,max_length,
                                     reward_mode,drivingcost_per_mile,share_ride_factor,output_flag,run_mode,num_cav,
-                                    cav_use_mode,time_window_flag,single_model_runtime,num_time_interval,TL,TU):
+                                    cav_use_mode,time_window_flag,single_model_runtime,num_time_interval,TL,TU,transit_zone_dict):
 #     sub_sorted_trips=[item for sublist in schedule_partition(sorted_trips,Vehicular_Skim,min_length,max_length) for item in sublist]
     
     route_info=pd.DataFrame()
@@ -655,9 +655,9 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
     for sub_sorted_trip in sub_sorted_trips:
         
         num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone\
-        =prd.extract_hh_information(sub_sorted_trip,Vehicular_Skim_Dict,Transit_AB_Cost_Skim,superzone_map,drivingcost_per_mile,num_time_interval)
-        # R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim,Transit_AB_Time_Skim,transit_zone_candidates,three_link_walk)
-        R=prd.estimate_trip_reward(hh_num_trips,sub_sorted_trip,Vehicular_Skim_Dict,reward_mode,superzone_map,drivingcost_per_mile)
+        =prd.extract_hh_information(sub_sorted_trip,Vehicular_Skim_Dict,Transit_AB_Cost_Skim_Dict,superzone_map,drivingcost_per_mile,num_time_interval)
+        # R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,WalkSpeed,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim_Dict,Transit_AB_Time_Skim_Dict,transit_zone_candidates,three_link_walk_dict)
+        R=prd.estimate_trip_reward(hh_num_trips,sub_sorted_trip,Vehicular_Skim_Dict,reward_mode,superzone_map,drivingcost_per_mile,transit_zone_dict)
         
         # print('start sovling problem at ',datetime.datetime.now())
         if run_mode<2:

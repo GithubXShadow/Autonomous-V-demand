@@ -86,7 +86,7 @@ def route_to_vehiclepathdat(route_infos,origin_links,folder_filepath,vehicle_fil
         external_vehicle=open(external_vehicle_filepath,'r')
         num_external_vehicle=int(next(external_vehicle).split()[0])
         next(external_vehicle)
-        excounter,exusec,exdsec,exstime,exusrcls,exvehtype,exioc,exonode,exintde,exinfo,exribf,excomp,exoz=next(external_vehicle).split()
+        excounter,exusec,exdsec,exstime,exusrcls,exvehtype,exioc,exonode,exintde,exinfo,exribf,excomp,exoz,temp,temp=next(external_vehicle).split()
         exTAZMap,exactivitytime=next(external_vehicle).split()
         exstime=float(exstime)+180 #External vehicle start from 0:00am but the abm file start from 3 am
     else:
@@ -119,7 +119,7 @@ def route_to_vehiclepathdat(route_infos,origin_links,folder_filepath,vehicle_fil
             line_listtemp=next(external_vehicle).split()
             
             if len(line_listtemp)>3:
-                excounter,exusec,exdsec,exstime,exusrcls,exvehtype,exioc,exonode,exintde,exinfo,exribf,excomp,exoz=line_listtemp
+                excounter,exusec,exdsec,exstime,exusrcls,exvehtype,exioc,exonode,exintde,exinfo,exribf,excomp,exoz,temp,temp=line_listtemp
                 exTAZMap,exactivitytime=next(external_vehicle).split()
                 exstime=float(exstime)+180 #External vehicle start from 0:00am but the abm file start from 3 am
             else: 

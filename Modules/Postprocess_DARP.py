@@ -11,7 +11,7 @@ from Modules import Preprocess_DARP as prd
 from gurobipy import *
 import datetime
 
-def analysis_result(darp_solution,sorted_trips,Vehicular_Skim,superzone_map):
+def analysis_result(darp_solution,sorted_trips,Vehicular_Skim_Dict,superzone_map):
     route_info=darp_solution['route_info']
     schedule_deviation =darp_solution['schedule_deviation']
     drivingcost_per_mile=darp_solution['drivingcost_per_mile']
@@ -23,12 +23,24 @@ def analysis_result(darp_solution,sorted_trips,Vehicular_Skim,superzone_map):
     darp_analyzed_result['num_pickup_trips']=len(route_info.loc[route_info.orig_node_index<=len(sorted_trips)])
     darp_analyzed_result['num_shared_trips']=len(route_info.loc[(route_info.orig_node_index<=len(sorted_trips)) &(route_info.dest_node_index<=len(sorted_trips))])
     darp_analyzed_result['num_convention car trips']=len(sorted_trips.loc[sorted_trips.tripmode<=6])
-    darp_analyzed_result['total_convention_vehicle_driving_time']=sorted_trips.loc[sorted_trips.tripmode<=6].apply(lambda row: prd.estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,Vehicular_Skim,2,superzone_map,drivingcost_per_mile),axis=1).sum()/60
-    darp_analyzed_result['total_AV_driving_time']=route_info.apply(lambda row: prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,row.value_of_time,Vehicular_Skim,2,superzone_map,drivingcost_per_mile),axis=1).sum()/60
-    darp_analyzed_result['total_AV_unoccupied_driving_time']=route_info.loc[route_info.person_id==0].apply(lambda row: prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,row.value_of_time,Vehicular_Skim,2,superzone_map,drivingcost_per_mile),axis=1).sum()/60
-    darp_analyzed_result['total_convention_vehicle_driving_distance']=sorted_trips.loc[sorted_trips.tripmode<=6].apply(lambda row: prd.estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,Vehicular_Skim,1,superzone_map,drivingcost_per_mile),axis=1).sum()
-    darp_analyzed_result['total_AV_driving_distance']=route_info.apply(lambda row:prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,row.value_of_time,Vehicular_Skim,1,superzone_map,drivingcost_per_mile) ,axis=1).sum()
-    darp_analyzed_result['total_AV_unoccupied_driving_distance']=route_info.loc[route_info.person_id==0].apply(lambda row:prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,row.value_of_time,Vehicular_Skim,1,superzone_map,drivingcost_per_mile),axis=1).sum()
+    darp_analyzed_result['total_convention_vehicle_driving_time']=sorted_trips.loc[sorted_trips.tripmode<=6].apply(lambda row: prd.estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,Vehicular_Skim_Dict,2,superzone_map,drivingcost_per_mile),axis=1).sum()/60
+    darp_analyzed_result['total_AV_driving_time']=route_info.apply(lambda row: prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,row.value_of_time,Vehicular_Skim_Dict,2,superzone_map,drivingcost_per_mile),axis=1).sum()/60
+    darp_analyzed_result['total_AV_unoccupied_driving_time']=route_info.loc[route_info.person_id==0].apply(
+        lambda row: prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,row.value_of_time,Vehicular_Skim_Dict,2,
+            superzone_map,drivingcost_per_mile),axis=1).sum()/60
+
+    darp_analyzed_result['total_convention_vehicle_driving_distance']=sorted_trips.loc[sorted_trips.tripmode<=6].apply(
+        lambda row: prd.estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,Vehicular_Skim_Dict,1,
+            superzone_map,drivingcost_per_mile),axis=1).sum()
+
+    darp_analyzed_result['total_AV_driving_distance']=route_info.apply(
+        lambda row:prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,row.value_of_time,Vehicular_Skim_Dict,1,
+            superzone_map,drivingcost_per_mile) ,axis=1).sum()
+
+    darp_analyzed_result['total_AV_unoccupied_driving_distance']=route_info.loc[route_info.person_id==0].apply(
+        lambda row:prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,row.value_of_time,Vehicular_Skim_Dict,1,
+            superzone_map,drivingcost_per_mile),axis=1).sum()
+    
     darp_analyzed_result['num_delayed_trips']=sum(1 for i in schedule_deviation if i >1)
     darp_analyzed_result['num_early_trips']=sum(1 for i in schedule_deviation if i <-1)
     darp_analyzed_result['total_delayed_time']=round(sum(i for i in schedule_deviation if i >0),3)
