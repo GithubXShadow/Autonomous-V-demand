@@ -51,7 +51,7 @@ def add_od_node_all_travelers(traveler_trips):
     traveler_trips['destination_node']=b
     return traveler_trips
 
-def trip_chain_highlight(trip_chain_or,node_detail,link_detail,nodexy):
+def trip_chain_highlight(origin_nodes,destination_nodes,node_detail,link_detail,nodexy):
     '''
         input trip_chain_or: a dataframe contains the origin and destination nodes of all the trips in one trip chain
     '''
@@ -64,11 +64,12 @@ def trip_chain_highlight(trip_chain_or,node_detail,link_detail,nodexy):
         Gred.add_node(node,pos=(nodexy[node][0],nodexy[node][1]))
     for linkinf in link_detail: 
         Gnormal.add_edge(linkinf[0,0],linkinf[0,1])
-    for index,row in trip_chain_or.iterrows():
-        Gred.add_edge(row['origin_node'],row['destination_node'])
+
+    for orig_node,dest_node in zip(origin_nodes,destination_nodes):
+        Gred.add_edge(orig_node,dest_node)
     pos=nx.get_node_attributes(Gnormal,'pos')
     nx.draw(Gnormal,pos,node_size=1,node_color='black',dpi=900)             
-    nx.draw(Gred,pos,edge_color='r',node_color='black',node_size=4,arrows=True,style='dotted',dpi=900)
+    nx.draw(Gred,pos,edge_color='r',node_color='black',node_size=4,arrows=True,style='dotted',dpi=900,width=3)
     return  
 
 def zone_node_highlight(target_node_list,node_detail,link_detail,nodexy,target_node_color):

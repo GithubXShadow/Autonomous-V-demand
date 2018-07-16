@@ -142,8 +142,8 @@ def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,
     opt_transit_time=1440
     transit_start_time_interval=math.ceil(trip_start_time/TransitSkimTimeIntervalLength)-1
     
-    transit_fare=2.25
-    transit_asc=5
+    transit_fare=1.75
+    transit_asc=0.5
     WalkSpeed=4.55672
     for otap in  transit_zone_dict[origin_zone]:
         for dtap in transit_zone_dict[dest_zone]: 
@@ -180,13 +180,13 @@ def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,
                 # opt_transit_time=Transit_AB_Time_Skim_Dict[otap][dtap][transit_start_time_interval]
                 # opt_walk_time=2*three_link_walk_dict[origin_zone][otap]/WalkSpeed/60
     if output_flag==0:
-        return min_transit_gc+transit_fare+transit_asc+np.random.logistic()/0.6
+        return min_transit_gc+transit_fare+transit_asc #+np.random.logistic()/0.6
     if output_flag==1:
         return opt_transit_time
     if output_flag==2:
         return opt_walk_time
     if output_flag==4:
-        return min_transit_gc+transit_fare+transit_asc+np.random.logistic()/0.6,opt_transit_time,opt_walk_time
+        return min_transit_gc+transit_fare+transit_asc,opt_transit_time,opt_walk_time
 # def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,TransitMazTazFlag,three_link_walk_dict,Transit_AB_Cost_Skim_Dict,TransitSkimTimeIntervalLength,output_flag):
 #     min_transit_gc=1440
 #     transit_gc_temp=1440

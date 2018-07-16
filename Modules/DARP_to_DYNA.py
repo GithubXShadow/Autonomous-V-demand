@@ -3,6 +3,7 @@ import pandas as pd
 import math
 import os
 import datetime
+from Modules import Postprocess_DARP as pod
 def read_vehicledat(vehicledat_filepath):
     '''
     This function read all sort of vehicledat file. It returns a dataframe vehicle_info that 
@@ -80,6 +81,9 @@ def route_to_vehiclepathdat(route_infos,origin_links,folder_filepath,vehicle_fil
     '''
     This function write all the route information in the format of vehicle.dat
     '''
+    route_infos=preprocess_routeinfo_for_vehicledat(route_infos)
+    if not os.path.exists(folder_filepath):
+        os.makedirs(folder_filepath)
     vehicledat=open(vehicle_filepath,'w')
     pathdat=open(path_filepath,'w')
     if os.path.isfile(external_vehicle_filepath):
@@ -162,7 +166,11 @@ def write_one_veh_seq(route_info,file_obj,path_file_obj,counter,origin_links,sup
         ivcltmp=3
         veh_pathnodenum=1
         path_file_obj.write('\n')
-    
+        # if (route_info.iloc[0].person_id==0) and (len(route_info)==1):
+        #     ivcltmp=2
+
+
+
     file_obj.write(str(counter)+'\t'+str(int(orig_u_node))+'\t'
                    +str(int(orig_d_node))+'\t'+str(round(route_info.iloc[0]['origin_arrival_time'],1))+'\t'
                    +str(ivcltmp)+'\t'+str(ivcl2tmp)+'\t'+str(ihovtmp)+'\t'+str(veh_pathnodenum)+'\t'
@@ -190,3 +198,27 @@ def preprocess_routeinfo_for_vehicledat(route_info):
     route_info.Activity_Time=route_info.Activity_Time.apply(lambda x: round(x,1))
     print(datetime.datetime.now())
     return route_info
+
+def save_run_result(run_name,route_info,darp_solutions,output_filepath):
+    output_filepath=output_filepath+run_name
+    if not os.path.exists(output_filepath):
+        os.makedirs(output_filepath)
+    route_info.to_csv(output_filepath+'route_info.csv')
+    pod.save_obj(darp_solutions,'darp_solutions',output_filepath)
+
+    return
+
+def write_darp_solution_to_file(run_name,output_filepath,route_info,darp_solutions,origin_links,
+    superzone_map,intrasuperzone_path_dic,average_value_of_time,external_factor):
+    
+    save_run_result(run_name,route_info,darp_solutions,output_filepath)
+    output_filepath=output_filepath+external_factor+'/'
+    vehicle_filepath=output_filepath+'vehicle.dat'
+    path_filepath=output_filepath+'path.dat'
+    external_vehicle_filepath='Input/external_vehicle'+external_factor+'.dat'
+    # average_value_of_time=round(traveler_trips.value_of_time.mean(),4)
+    
+    
+    route_to_vehiclepathdat(route_info,origin_links,output_filepath,vehicle_filepath,path_filepath,superzone_map,
+                                intrasuperzone_path_dic,external_vehicle_filepath,average_value_of_time)
+    return

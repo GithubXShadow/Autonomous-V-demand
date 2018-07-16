@@ -60,3 +60,22 @@ def estimate_num_vehicle_household(sorted_trips,method_flag):
                         min_vector[int(start_temp):int(end_temp)]+=1
     
     return max(min_vector)
+
+def math_orig_dest_nodes: 
+    current_traveler=0
+    orig_nodes=[]
+    dest_nodes=[]
+    home_node=0
+    for index,row in target_trips[target_trips.hh_id==target_hh_id].iterrows():
+        if row.orig_purpose=='Home' and home_node=0:
+            home_node=home_node
+        
+        if row.person_id != current_traveler:
+            orig_nodes.extend([row.origin_node])
+            dest_nodes.extend([row.destination_node])
+            last_dest_node=row.destination_node
+            current_traveler=row.person_id
+        else:
+            orig_nodes.extend([last_dest_node])
+            dest_nodes.extend([row.destination_node])
+            last_dest_node=row.destination_node       
