@@ -154,7 +154,7 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
                 for ti in range(num_time_interval):
                     x[i,j,ve,ti].start=0
     x_temp=np.zeros((2*hh_num_trips+2,2*hh_num_trips+2,num_cav,num_time_interval))
-    # print(int(x[0,0,0,0].start))
+    
     # x["*","*","*"].start=0
     expected_arrival_time_interval=math.floor(expected_arrival_time[0]/(1440/num_time_interval))
     x[0,1,0,expected_arrival_time_interval].start=1
@@ -336,7 +336,7 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     if reward_mode==0 and time_window_flag !=1 :
         m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
     elif num_cav>1:
-        m1.setObjective(obj1-obj2-obj3-obj4,GRB.MAXIMIZE)
+        m1.setObjective(obj1-obj2-obj3,GRB.MAXIMIZE)
     else:
         m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
 
@@ -529,7 +529,7 @@ def get_route_info_allhh(traveler_trips,output_flag,min_length,max_length,single
                                     cav_use_mode,time_window_flag,single_model_runtime,num_time_interval,TL,TU,transit_zone_dict,transit_zone_candidates,
                                     TransitMazTazFlag,TransitSkimTimeIntervalLength)
         print(counter,hh_num_trips,datetime.datetime.now())
-        route_info=darp_solutions[-1]['route_info']
+        route_info=darp_solutions[target_hh_id]['route_info']
         if not route_info.empty:
             route_infos=route_infos.append(route_info)
        
@@ -668,7 +668,7 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
         num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone\
         =prd.extract_hh_information(sub_sorted_trip,Vehicular_Skim_Dict,Transit_AB_Cost_Skim_Dict,superzone_map,drivingcost_per_mile,num_time_interval)
         # R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim_Dict,Transit_AB_Time_Skim_Dict,transit_zone_candidates,three_link_walk_dict)
-        print(hh_num_trips,sub_sorted_trip.hh_id.unique(),len(sub_sorted_trip))
+        
         R=prd.estimate_trip_reward(hh_num_trips,sub_sorted_trip,Vehicular_Skim_Dict,Transit_AB_Cost_Skim_Dict,Transit_AB_Time_Skim_Dict,three_link_walk_dict,
             reward_mode,superzone_map,drivingcost_per_mile,transit_zone_dict,transit_zone_candidates,TransitMazTazFlag,TransitSkimTimeIntervalLength)
         
@@ -696,8 +696,8 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
         total_schedule_penalty+=obj2_value
         total_travel_cost+=obj3_value
 
-        print(sub_route_info[['start_time','origin_arrival_time']])
-        print(sub_sorted_trip.starttime)
+        # print(sub_route_info[['start_time','origin_arrival_time','orig_node_index','dest_node_index']])
+        # print(sub_sorted_trip.starttime)
         
 #         for index, row in route_info.iterrows():
 #             print(route_info.dest_expected_arrival_time,'\t',row.dest_arrival_time,'\t',row.start_time,'\t',T[row.dest_node_index].x)
@@ -742,7 +742,7 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
         lambda row:prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,row.value_of_time,Vehicular_Skim_Dict,1,
             superzone_map,drivingcost_per_mile) ,axis=1).sum()
     darp_solution['objective_value']=total_reward+ total_schedule_penalty+total_travel_cost
-    darp_solution['hh_id']=sorted_trips.hh_id[0]
+    darp_solution['hh_id']=sorted_trips.hh_id.iloc[0]
     return darp_solution
 
 def solve_with_VNS(initial_route_info,num_hh_member,hh_num_trips,C,TT,sorted_trips,

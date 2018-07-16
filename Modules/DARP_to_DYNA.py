@@ -81,9 +81,12 @@ def route_to_vehiclepathdat(route_infos,origin_links,folder_filepath,vehicle_fil
     '''
     This function write all the route information in the format of vehicle.dat
     '''
+
     route_infos=preprocess_routeinfo_for_vehicledat(route_infos)
     if not os.path.exists(folder_filepath):
         os.makedirs(folder_filepath)
+    internal_mapdat=open(folder_filepath+'internal_map.dat','w')
+    external_mapdat=open(folder_filepath+'external_map.dat','w')
     vehicledat=open(vehicle_filepath,'w')
     pathdat=open(path_filepath,'w')
     if os.path.isfile(external_vehicle_filepath):
@@ -117,7 +120,10 @@ def route_to_vehiclepathdat(route_infos,origin_links,folder_filepath,vehicle_fil
                              '1'+'\t'+exintde+'\t'+exinfo+'\t'+exribf+'\t'+excomp+'\t'+
                              exoz+'\t'+str(average_value_of_time)+'\t'+'1'+'\n')
             vehicledat.write(exTAZMap+'\t'+exactivitytime+'\n')
-            
+            internal_mapdat.write(str(counter)+'\t'+'0'+'\n')
+            internal_mapdat.write('0')
+            external_mapdat.write(str(counter)+'\t'+excounter+'\n')
+
             pathdat.write('\n')
             counter +=1
             line_listtemp=next(external_vehicle).split()
@@ -128,9 +134,7 @@ def route_to_vehiclepathdat(route_infos,origin_links,folder_filepath,vehicle_fil
                 exstime=float(exstime)+180 #External vehicle start from 0:00am but the abm file start from 3 am
             else: 
                 exstime=1555
-        if counter==90056:
-
-            print(target_seg)
+        
         write_one_veh_seq(target_seg,vehicledat,pathdat,counter,origin_links,superzone_map,intrasuperzone_path_dic)
         # print(4,datetime.datetime.now())
         counter +=1
@@ -139,7 +143,7 @@ def route_to_vehiclepathdat(route_infos,origin_links,folder_filepath,vehicle_fil
     vehicledat.close()
     pathdat.close()
     return
-def write_one_veh_seq(route_info,file_obj,path_file_obj,counter,origin_links,superzone_map,intrasuperzone_path_dic):
+def write_one_veh_seq(route_info,file_obj,path_file_obj,internal_mapdatp,external_mapdat,ecounter,origin_links,superzone_map,intrasuperzone_path_dic):
     '''
     This function convert the route information of one segment into vehicle.dat format. The function is called by route_to_vehiclepathdat
     '''
@@ -169,7 +173,9 @@ def write_one_veh_seq(route_info,file_obj,path_file_obj,counter,origin_links,sup
         # if (route_info.iloc[0].person_id==0) and (len(route_info)==1):
         #     ivcltmp=2
 
-
+    internal_mapdat.write(str(counter)+'\t'+route_info.iloc[0].veh_seg_index+'\n')
+    
+    external_mapdat.write(str(counter)+'\t'+'0'+'\n')
 
     file_obj.write(str(counter)+'\t'+str(int(orig_u_node))+'\t'
                    +str(int(orig_d_node))+'\t'+str(round(route_info.iloc[0]['origin_arrival_time'],1))+'\t'
@@ -179,7 +185,9 @@ def write_one_veh_seq(route_info,file_obj,path_file_obj,counter,origin_links,sup
                    +str(route_info.iloc[0]['value_of_time'])+'\t'+'1'+'\n')
     for (index,row) in route_info.iloc[:-1].iterrows():
         file_obj.write(str(row['dest_zone'])+'\t'+str(row['Activity_Time'])+'\n')
+        internal_mapdat.write(str(row.origin_arrival_time)+'\n')
     file_obj.write(str(route_info['dest_zone'].iloc[-1])+'\t'+'0.0\n')
+    internal_mapdat.write(str(route_info['origin_arrival_time'].iloc[-1])+'\n')
     if (route_info.dest_zone.iloc[-1]<1):
         print('error')
     return

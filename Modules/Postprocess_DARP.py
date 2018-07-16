@@ -58,7 +58,7 @@ def analysis_result(darp_solution,sorted_trips,Vehicular_Skim_Dict,superzone_map
     darp_analyzed_result['num_early_trips']=sum(1 for i in schedule_deviation if i <-1)
     darp_analyzed_result['total_delayed_time']=round(sum(i for i in schedule_deviation if i >0),3)
     darp_analyzed_result['Total_early_time']=round(sum(i for i in schedule_deviation if i <0),3)
-    
+
     darp_analyzed_result['total_reward']=darp_solution['total_reward']
     darp_analyzed_result['total_schedule_penalty']=darp_solution['total_schedule_penalty']
     darp_analyzed_result['total_travel_cost']=darp_solution['total_travel_cost']
@@ -98,10 +98,11 @@ def plot_route_info_schedule(route_info,sorted_trips,num_cav):
     sorted_trips.loc[:,'p_id']=sorted_trips.groupby(['person_id']).ngroup()
     # print(sorted_trips.loc[:,'p_id'].unique())
     hh_num_trips=len(sorted_trips)
+    print(sorted_trips.person_id.unique())
     person_id_and_inhouse_p_id_map=dict(zip(sorted_trips.person_id,sorted_trips.p_id))
     person_id_and_inhouse_p_id_map[0]=-1
     route_info['p_id']=route_info.person_id.apply(lambda x: person_id_and_inhouse_p_id_map[x])
-    
+    route_info.sort_values(by=['origin_arrival_time'],inplace=True)
     plt.pyplot.scatter(route_info.loc[(route_info.p_id!=-1) & 
                     (route_info.orig_node_index<1+hh_num_trips),'p_id'],
                     route_info.loc[(route_info.p_id!=-1) & 
