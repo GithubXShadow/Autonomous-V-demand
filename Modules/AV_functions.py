@@ -69,7 +69,7 @@ def trip_chain_highlight(origin_nodes,destination_nodes,node_detail,link_detail,
         Gred.add_edge(orig_node,dest_node)
     pos=nx.get_node_attributes(Gnormal,'pos')
     nx.draw(Gnormal,pos,node_size=1,node_color='black',dpi=900)             
-    nx.draw(Gred,pos,edge_color='r',node_color='black',node_size=4,arrows=True,style='dotted',dpi=900,width=3)
+    nx.draw(Gred,pos,edge_color='r',node_color='black',node_size=4,arrows=True,style='-',dpi=900,width=3)
     return  
 
 def zone_node_highlight(target_node_list,node_detail,link_detail,nodexy,target_node_color):

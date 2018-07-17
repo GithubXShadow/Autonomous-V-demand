@@ -695,6 +695,11 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
         total_reward+=obj1_value
         total_schedule_penalty+=obj2_value
         total_travel_cost+=obj3_value
+        T_sol=np.ones(2*hh_num_trips+2)
+        for i in range(2*hh_num_trips+2):
+        #     print(int(T[i].x),'\t',expected_arrival_time[i],'\t',T[i].x-expected_arrival_time[i])
+            T_sol[i]=T[i].x
+        schedule_deviation.extend(T_sol-expected_arrival_time)
 
         # print(sub_route_info[['start_time','origin_arrival_time','orig_node_index','dest_node_index']])
         # print(sub_sorted_trip.starttime)
@@ -706,14 +711,9 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
         route_info=break_route_to_seg(route_info,superzone_map)
     route_info.orig_zone=route_info.orig_zone.apply(lambda x: int(x))
     route_info.dest_zone=route_info.dest_zone.apply(lambda x: int(x))
-    T_sol=np.ones(2*hh_num_trips+2)
-    for i in range(2*hh_num_trips+2):
-    #     print(int(T[i].x),'\t',expected_arrival_time[i],'\t',T[i].x-expected_arrival_time[i])
-        T_sol[i]=T[i].x
-    schedule_deviation.extend(T_sol-expected_arrival_time)
     darp_solution={}
     darp_solution['route_info']=route_info
-    darp_solution['schedule_deviation']=schedule_deviation
+    darp_solution['schedule_deviation']=sum(list(map(abs,schedule_deviation)))
     darp_solution['total_reward']=total_reward
     darp_solution['total_schedule_penalty']=total_schedule_penalty
     darp_solution['total_travel_cost']=total_travel_cost
