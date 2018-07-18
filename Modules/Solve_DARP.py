@@ -544,6 +544,10 @@ def extract_route_from_model_solution(x,T,R,TT,sorted_trips,visit_candidate_zone
     #the corresponding downstream node index
 
     hh_id=sorted_trips['hh_id'].iloc[0]    
+    node_traveler_dict={}
+    for i,person_id in zip(range(1,hh_num_trips+1),sorted_trips.person_id):
+        node_traveler_dict[i]=person_id
+        node_traveler_dict[i+hh_num_trips]=person_id
     route_info=pd.DataFrame()
     for ve in range(num_cav):
         if run_mode<2:
@@ -589,6 +593,7 @@ def extract_route_from_model_solution(x,T,R,TT,sorted_trips,visit_candidate_zone
         transit_utility=[R[i] if i<=hh_num_trips \
                         else 0 for i in route_node[1:-1]]
         car_utility=[TT[i,j]  for i,j in zip(route_node[1:-1],route_node[2:])]
+        
 
         route_info_temp=pd.DataFrame({'orig_zone':route[1:-1],'dest_zone':route[2:],'person_id':travelers[1:],
                                  'orig_node_index':route_node[1:-1],'dest_node_index':route_node[2:],
@@ -603,11 +608,14 @@ def extract_route_from_model_solution(x,T,R,TT,sorted_trips,visit_candidate_zone
                                          ,'start_time','Activity_Time','hh_id','hh_vehicle_id',
                                          'shared_ride_flag','pickup_trip_flag','transit_utility',
                                          'car_utility'])
-       
+        # print(route_info['orig_node_index'])
+        route_info_temp['orig_traveler']=route_info_temp['orig_node_index'].apply(lambda x: node_traveler_dict[x])
+        route_info_temp['dest_traveler']=route_info_temp['dest_node_index'].apply(lambda x: node_traveler_dict[x])
         # Drop the trip between a person's current destination and next trips's origin, as those are the same node
-        route_info_temp=route_info_temp.loc[((route_info_temp.orig_node_index-route_info_temp.dest_node_index!=hh_num_trips-1)
-                                   | (route_info_temp.orig_zone!=route_info_temp.dest_zone)
-                                  |(route_info_temp.start_time!=route_info_temp.dest_expected_arrival_time)) ] 
+        # route_info_temp=route_info_temp.loc[(((route_info_temp.orig_node_index>hh_num_trips) &(route_info_temp.orig_traveler != route_info_temp.dest_traveler))
+        #                            | (route_info_temp.orig_zone!=route_info_temp.dest_zone)
+        #                           |(route_info_temp.origin_arrival_time!=route_info_temp.dest_arrival_time)) ] 
+        route_info_temp=route_info_temp.loc[(route_info_temp.orig_traveler != route_info_temp.dest_traveler) |  (route_info_temp.orig_node_index<hh_num_trips+1)]
     #     sorted_trips.iloc[max(i for i in [route_info_temp.orig_node_index,route_info_temp.orig_node_index-hh_num_trips] if i >0)].person_id !=
     # sorted_trips.iloc[max(i for i in [route_info_temp.dest_node_index,route_info_temp.dest_node_index-hh_num_trips] if i >0)].person_id
         
@@ -881,7 +889,7 @@ def optimal_start_time(sorted_trips,x_sol,T_sol,hh_num_trips,expected_arrival_ti
     m3=Model("Optimal_Start_Time")
     T=m3.addVars(2*hh_num_trips+2,name="T",vtype=GRB.CONTINUOUS) #T represent the expected arrivial time at a node
     S=m3.addVars(2*hh_num_trips+2,name="S") 
-    x=m3.addVars(2*hh_num_trips+2,2*hh_num_trips+2,72,name='x',vtype=GRB.BINARY)
+    x=m3.addVars(2*hh_num_trips+2,2*hh_num_trips+2,5,name='x',vtype=GRB.BINARY)
     m3.setObjective(S.sum(),GRB.MINIMIZE)
     m3.addConstrs((S[i]>=early_penalty[i]*(expected_arrival_time[i]-T[i]) for i in range(2*hh_num_trips+2)),'earlyarrivalpenalty')
     m3.addConstrs((S[i]>=late_penalty[i]*(T[i]-expected_arrival_time[i]) for i in range(2*hh_num_trips+2)),'latearrivalpenalty')

@@ -232,3 +232,15 @@ def write_darp_solution_to_file(run_name,output_filepath,route_info,darp_solutio
     route_to_vehiclepathdat(route_info,origin_links,output_filepath,vehicle_filepath,path_filepath,superzone_map,
                                 intrasuperzone_path_dic,external_vehicle_filepath,average_value_of_time)
     return
+
+def transit_trip_inconsistency_analysis(darp_solutions,target_trips):
+    more_transit_than_predicted=[]
+    less_transit_than_predicted=[]
+
+    for hh_id,group in target_trips.groupby('hh_id'):
+        if(len(group[group.predicted_mode=='Car'])<darp_solutions[hh_id]['num_pickup_trips']):
+            more_transit_than_predicted.extend([hh_id])
+        else:
+            less_transit_than_predicted.extend([hh_id])
+    return more_transit_than_predicted,less_transit_than_predicted
+

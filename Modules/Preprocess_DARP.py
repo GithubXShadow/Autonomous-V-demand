@@ -242,7 +242,7 @@ def estimate_single_car_trip_cost(origin_zone,dest_zone,trip_start_time,
     
 def compare_mode_utlity(sorted_trips,TransitMazTazFlag,three_link_walk_dict,Transit_AB_Cost_Skim_Dict,Transit_AB_Time_Skim_Dict,TransitSkimTimeIntervalLength,
     Vehicular_Skim_Dict,superzone_map,drivingcost_per_mile,transit_zone_dict):
-    random.seed(123)
+    np.random.seed(123)
     # sorted_trips['transit_time']=sorted_trips.apply(lambda row: 
     #     estimate_single_transit_trip_cost(row.orig_maz,row.dest_maz,row.starttime,row.value_of_time,
     #     TransitMazTazFlag,three_link_walk_dict,Transit_AB_Cost_Skim_Dict,Transit_AB_Time_Skim_Dict,TransitSkimTimeIntervalLength
@@ -309,6 +309,7 @@ def estimate_trip_reward(hh_num_trips,sorted_trips,Vehicular_Skim_Dict,Transit_A
         R.extend(list(sorted_trips['transit_utility']))
     elif reward_mode==2:
         R=150*np.ones(1+hh_num_trips)
+        R[0]=0
     return R
 
 def extract_hh_information(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Cost_Skim_Dict,superzone_map,

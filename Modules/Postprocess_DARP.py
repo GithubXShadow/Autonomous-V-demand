@@ -176,45 +176,90 @@ def analysis_one_hh_result_new_darpsolution(target_hh_id,darp_solutions,target_t
 
 def analysis_network_level_results(route_info,darp_solutions,target_trips,Vehicular_Skim_Dict,superzone_map,
     drivingcost_per_mile):
-    print('Number of AV Trips',len(route_info))
-    print('Number of Shared Rides',route_info.shared_ride_flag.sum())
+    print('Number of AV Trips: \t',len(route_info))
+    print('Number of Shared Rides: \t',route_info.shared_ride_flag.sum())
    
-    print('Total VMT',route_info.apply(
+    print('Total VMT: \t',route_info.apply(
         lambda row: prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,
             row.origin_arrival_time,row.value_of_time,Vehicular_Skim_Dict,1,
             superzone_map,drivingcost_per_mile),axis=1).sum())
-    print('Number of occupied trips  ',len(route_info.loc[route_info.person_id>0]))
-    print('Number of unoccupied trips ',len(route_info.loc[route_info.person_id==0]))
-    print('Number of transit trips',len(target_trips)-route_info.pickup_trip_flag.sum())
+    print('Number of occupied trips: \t',len(route_info.loc[route_info.person_id>0]))
+    print('Number of unoccupied trips: \t',len(route_info.loc[route_info.person_id==0]))
+    print('Number of transit trips: \t',len(target_trips)-route_info.pickup_trip_flag.sum())
     # print('Share of transit change',(len(target_trips)-route_info.pickup_trip_flag.sum())/len(target_trips))
-    print('total_convention_vehicle_driving_time',
+    print('total_convention_vehicle_driving_time: \t',
     target_trips.loc[target_trips.tripmode<=6].apply(lambda row: 
         prd.estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,
             Vehicular_Skim_Dict,2,superzone_map,drivingcost_per_mile),axis=1).sum()/60)
-    print('total_convention_vehicle_driving_distance',target_trips.loc[target_trips.tripmode<=6].apply(
+    print('total_convention_vehicle_driving_distance: \t',target_trips.loc[target_trips.tripmode<=6].apply(
         lambda row: prd.estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,
             row.value_of_time,Vehicular_Skim_Dict,1,
             superzone_map,drivingcost_per_mile),axis=1).sum())
 
-    print('total_AV_driving_time',route_info.apply(lambda row: 
+    print('total_AV_driving_time: \t',route_info.apply(lambda row: 
         prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.origin_arrival_time,
             row.value_of_time,Vehicular_Skim_Dict,2,superzone_map,drivingcost_per_mile),axis=1).sum()/60)
 
-    print('total_AV_unoccupied_driving_time',route_info.loc[route_info.person_id==0].apply(
+    print('total_AV_unoccupied_driving_time: \t',route_info.loc[route_info.person_id==0].apply(
         lambda row: prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,
             row.value_of_time,Vehicular_Skim_Dict,2,
             superzone_map,drivingcost_per_mile),axis=1).sum()/60)
 
-    print('total_AV_driving_distance',route_info.apply(
+    print('total_AV_driving_distance: \t',route_info.apply(
         lambda row:prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,
             row.value_of_time,Vehicular_Skim_Dict,1,
             superzone_map,drivingcost_per_mile) ,axis=1).sum())
 
-    print('total_AV_unoccupied_driving_distance',route_info.loc[route_info.person_id==0].apply(
+    print('total_AV_unoccupied_driving_distance: \t',route_info.loc[route_info.person_id==0].apply(
         lambda row:prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,
             row.value_of_time,Vehicular_Skim_Dict,1,
             superzone_map,drivingcost_per_mile),axis=1).sum())
-    
-  
+    print('Number of pickup trips: \t',route_info.pickup_trip_flag.sum())
+    return
+
+def determin_number_car(darp_solution1,darp_solution2,route_info1,route_info2,car_operating_cost,target_trips):
+    household_car_select_list=[[],[]]
+    new_darp_solution={}
+    z=[[],[]]
+    for hh_id in target_trips.hh_id.unique():
+        # print(darp_solution1[hh_id]['objective_value'],darp_solution1[hh_id]['num_cav'],darp_solution2[hh_id]['objective_value'],darp_solution2[hh_id]['num_cav'])
+        if (darp_solution1[hh_id]['objective_value']-darp_solution1[hh_id]['num_cav']*car_operating_cost\
+            >(darp_solution2[hh_id]['objective_value']-darp_solution2[hh_id]['num_cav']*car_operating_cost-150)):
+
+            z[0].extend([hh_id])
+            new_darp_solution[hh_id]=darp_solution1[hh_id]
+        else: 
+            z[1].extend([hh_id])
+            new_darp_solution[hh_id]=darp_solution2[hh_id]
+
+    new_route_info=route_info1[route_info1.hh_id.isin(z[0])]
+    new_route_info=new_route_info.append(route_info2[route_info2.hh_id.isin(z[1])])
+
+
+    return new_route_info,new_darp_solution,z
+
+def plot_numtrips_numcav_relation(target_trips,hh_car_list):
+    temp1=target_trips[target_trips.hh_id.isin(hh_car_list[1])]
+    temp2=target_trips[target_trips.hh_id.isin(hh_car_list[0])]
+    fig1, (ax1, ax2) = plt.pyplot.subplots(nrows=1, ncols=2,figsize=(12, 4))
+    ax1.set_xlabel('Number of Trips')
+    ax1.set_ylabel('Count')
+    ax1.set_title('Households choose 1 AV')
+    ax2.set_xlabel('Number of Trips')
+    ax2.set_ylabel('Count')
+    ax2.set_title('Households choose 2 AV')
+    temp2.groupby('hh_id').count().person_id.hist(ax=ax1)
+    temp1.groupby('hh_id').count().person_id.hist(ax=ax2)
 
     return
+
+def transit_trip_inconsistency_analysis(darp_solutions,target_trips):
+    more_transit_than_predicted=[]
+    less_transit_than_predicted=[]
+
+    for hh_id,group in target_trips.groupby('hh_id'):
+        if(len(group[group.predicted_mode=='Car'])<darp_solutions[hh_id]['num_pickup_trips']):
+            more_transit_than_predicted.extend([hh_id])
+        else:
+            less_transit_than_predicted.extend([hh_id])
+    return more_transit_than_predicted,less_transit_than_predicted

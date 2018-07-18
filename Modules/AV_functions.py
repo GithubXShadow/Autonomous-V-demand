@@ -119,8 +119,16 @@ def calculate_node_travel_time_matrix(visit_candidate,nodexy):
     
 def compare_run_time():
     print(datetime.datetime.now())
-    #put the test code 1 here
+    total_schedule_deviation=0
+    for hh_id in darp_solutions_modechoice.keys():
+        total_schedule_deviation+=darp_solutions_modechoice[hh_id]['schedule_deviation']
     print(datetime.datetime.now())
     #put the test code 2 here
     print(datetime.datetime.now())
     return
+
+def get_total_schedule_deviation(darp_solutions):
+    total_schedule_deviation=0
+    for hh_id in darp_solutions.keys():
+        total_schedule_deviation+=darp_solutions[hh_id]['schedule_deviation']
+    return total_schedule_deviation
