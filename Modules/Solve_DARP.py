@@ -342,25 +342,25 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
 
     m1.setParam(GRB.Param.OutputFlag,output_flag)
     m1.Params.TIME_LIMIT=single_model_runtime
-    m1.setParam(GRB.Param.MIPGap,0.01)
+    # m1.setParam(GRB.Param.MIPGap,0.01)
     # print('***********************')
     # print(R[9],C[9,20],C[8,19],C[10,21],C[19,10])
     # m1.addConstrs((x.sum(9,'*',ve)==0 for ve in range(num_cav)),'tempconstraints')
     # print('***********************')
     ##############################################################
     # Preprocessing
-    for ve in range(num_cav):
-        for i in range(1,hh_num_trips+1):
-            m1.remove(x[0,i+hh_num_trips,ve])     #No trip go directly from depot to a delivery node
-            m1.remove(x[i,2*hh_num_trips+1,ve])  #No trip go directly from a pickup node to depot
-            m1.remove(x[hh_num_trips+i,i,ve])      #No trip go directly from a delivery node back to associated pickup node
-            m1.remove(x[i,i,ve])                  #No trip between the same node
-            for j in range(2*hh_num_trips+2):
-                if (TT[i,j]+TT[j,i+hh_num_trips]>share_ride_factor*TT[i,i+hh_num_trips]):
-                    m1.remove(x[i,j,ve])
-                    m1.remove(x[j,i+hh_num_trips,ve])
-        for i in range(hh_num_trips+1,2*hh_num_trips+2):         
-            m1.remove(x[i,i,ve])
+    # for ve in range(num_cav):
+    #     for i in range(1,hh_num_trips+1):
+    #         m1.remove(x[0,i+hh_num_trips,ve])     #No trip go directly from depot to a delivery node
+    #         m1.remove(x[i,2*hh_num_trips+1,ve])  #No trip go directly from a pickup node to depot
+    #         m1.remove(x[hh_num_trips+i,i,ve])      #No trip go directly from a delivery node back to associated pickup node
+    #         m1.remove(x[i,i,ve])                  #No trip between the same node
+    #         for j in range(2*hh_num_trips+2):
+    #             if (TT[i,j]+TT[j,i+hh_num_trips]>share_ride_factor*TT[i,i+hh_num_trips]):
+    #                 m1.remove(x[i,j,ve])
+    #                 m1.remove(x[j,i+hh_num_trips,ve])
+    #     for i in range(hh_num_trips+1,2*hh_num_trips+2):         
+    #         m1.remove(x[i,i,ve])
     ###############################################################
     #warm start with heuristic
     for i in range(2*hh_num_trips+2):
@@ -492,7 +492,7 @@ def find_av_schedule_exact_method(target_hh_id,traveler_trips,output_flag,min_le
     m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
                 expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
                 R,Vehicular_Skim_Dict,share_ride_factor,output_flag,run_mode,reward_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
-    route_info=extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode)
+    route_info=extract_route_from_model_solution(x,T,R,TT,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode)
     if not route_info.empty:
         route_info=break_route_to_seg(route_info,superzone_map)
     return route_info
@@ -512,7 +512,7 @@ def get_route_info_allhh(traveler_trips,output_flag,min_length,max_length,single
     # row_number=0
     for target_hh_id in traveler_trips.hh_id.unique():
         # row_number=row_number+len(traveler_trips[traveler_trips.hh_id==household_id])
-        if counter%100==0: 
+        if counter%1000==0: 
             print('Estimate Route for the ',counter,'th household ',datetime.datetime.now())
         counter=counter+1
         target_hh=traveler_trips[(traveler_trips['hh_id']==target_hh_id)]\
@@ -528,13 +528,13 @@ def get_route_info_allhh(traveler_trips,output_flag,min_length,max_length,single
                                     superzone_map,min_length,max_length,reward_mode,drivingcost_per_mile,share_ride_factor,output_flag,run_mode,num_cav,
                                     cav_use_mode,time_window_flag,single_model_runtime,num_time_interval,TL,TU,transit_zone_dict,transit_zone_candidates,
                                     TransitMazTazFlag,TransitSkimTimeIntervalLength)
-        print(counter,hh_num_trips,datetime.datetime.now())
+        # print(counter,hh_num_trips,datetime.datetime.now())
         route_info=darp_solutions[target_hh_id]['route_info']
         if not route_info.empty:
             route_infos=route_infos.append(route_info)
        
     return  route_infos,darp_solutions
-def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,
+def extract_route_from_model_solution(x,T,R,TT,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,
     expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode):
     '''
     This function extract route information from the MIP solution and convert the x, T in to trip list.
@@ -575,21 +575,34 @@ def extract_route_from_model_solution(x,T,sorted_trips,visit_candidate_zone,hh_n
         activity_time=[0 if travelers[i]==0 
              else max(0,expected_leave_time[route_node[i+1]]-expected_arrival_time[route_node[i+1]])
             for i in range(len(travelers))]
+
         start_time=[expected_leave_time[route_node[i-1]] for i in range(1,len(route_node))]
         origin_arrival_time=[T[route_node[i-1]].x for i in range(1,len(route_node))] 
         dest_arrival_time= [T[node].x for node in route_node[1:]]
         dest_expected_arrival_time=[expected_arrival_time[node] for node in route_node[1:]]
         route=[visit_candidate_zone[x] for x in route_node]
-        
+
+        shared_ride_flag=[1 if i<=hh_num_trips and j <=hh_num_trips \
+                        else 0 for i,j in zip(route_node[1:-1],route_node[2:])]
+        pickup_trip_flag=[1 if i<=hh_num_trips \
+                        else 0 for i in route_node[1:-1]]
+        transit_utility=[R[i] if i<=hh_num_trips \
+                        else 0 for i in route_node[1:-1]]
+        car_utility=[TT[i,j]  for i,j in zip(route_node[1:-1],route_node[2:])]
+
         route_info_temp=pd.DataFrame({'orig_zone':route[1:-1],'dest_zone':route[2:],'person_id':travelers[1:],
                                  'orig_node_index':route_node[1:-1],'dest_node_index':route_node[2:],
                                  'origin_arrival_time':origin_arrival_time[1:],'dest_arrival_time':dest_arrival_time[1:],
                                  'dest_expected_arrival_time':dest_expected_arrival_time[1:],'value_of_time':vot[1:],
                                  'start_time':start_time[1:],'Activity_Time':activity_time[1:],
-                                 'hh_id':np.ones(len(route[1:-1]))*hh_id,'hh_vehicle_id':np.ones(len(route[1:-1]))*ve},
+                                 'hh_id':np.ones(len(route[1:-1]))*hh_id,'hh_vehicle_id':np.ones(len(route[1:-1]))*ve,
+                                 'shared_ride_flag':shared_ride_flag,'pickup_trip_flag':pickup_trip_flag,
+                                 'transit_utility':transit_utility,'car_utility':car_utility},
                                 columns=['orig_zone','dest_zone','orig_node_index','dest_node_index',
                                          'person_id','origin_arrival_time','dest_arrival_time','dest_expected_arrival_time','value_of_time'
-                                         ,'start_time','Activity_Time','hh_id','hh_vehicle_id'])
+                                         ,'start_time','Activity_Time','hh_id','hh_vehicle_id',
+                                         'shared_ride_flag','pickup_trip_flag','transit_utility',
+                                         'car_utility'])
        
         # Drop the trip between a person's current destination and next trips's origin, as those are the same node
         route_info_temp=route_info_temp.loc[((route_info_temp.orig_node_index-route_info_temp.dest_node_index!=hh_num_trips-1)
@@ -683,7 +696,7 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
                 share_ride_factor,output_flag,run_mode,reward_mode,num_cav,num_time_interval,cav_use_mode,time_window_flag,single_model_runtime)
                
         # print('finish solving problem at ',datetime.datetime.now())
-        sub_route_info=extract_route_from_model_solution(x,T,sub_sorted_trip,visit_candidate_zone,hh_num_trips,expected_arrival_time,
+        sub_route_info=extract_route_from_model_solution(x,T,R,TT,sub_sorted_trip,visit_candidate_zone,hh_num_trips,expected_arrival_time,
             expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode)
         total_tailing_sub_trips_length=int(len(sorted_trips)-total_previous_sub_trips_length-len(sub_sorted_trip))
         sub_route_info['orig_node_index']=sub_route_info.orig_node_index.apply(

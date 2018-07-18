@@ -135,7 +135,8 @@ def route_to_vehiclepathdat(route_infos,origin_links,folder_filepath,vehicle_fil
             else: 
                 exstime=1555
         
-        write_one_veh_seq(target_seg,vehicledat,pathdat,counter,origin_links,superzone_map,intrasuperzone_path_dic)
+        write_one_veh_seq(target_seg,vehicledat,pathdat,
+            internal_mapdat,external_mapdat,counter,origin_links,superzone_map,intrasuperzone_path_dic)
         # print(4,datetime.datetime.now())
         counter +=1
         if counter%1000==0: 
@@ -143,7 +144,8 @@ def route_to_vehiclepathdat(route_infos,origin_links,folder_filepath,vehicle_fil
     vehicledat.close()
     pathdat.close()
     return
-def write_one_veh_seq(route_info,file_obj,path_file_obj,internal_mapdatp,external_mapdat,ecounter,origin_links,superzone_map,intrasuperzone_path_dic):
+def write_one_veh_seq(route_info,file_obj,path_file_obj,internal_mapdat,
+    external_mapdat,counter,origin_links,superzone_map,intrasuperzone_path_dic):
     '''
     This function convert the route information of one segment into vehicle.dat format. The function is called by route_to_vehiclepathdat
     '''

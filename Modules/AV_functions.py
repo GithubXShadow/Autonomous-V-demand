@@ -2,7 +2,7 @@
 # coding: utf-8
 
 # In[1]:
-
+import datetime
 import numpy as np
 import pandas as pd
 import matplotlib as plt
@@ -117,3 +117,10 @@ def calculate_node_travel_time_matrix(visit_candidate,nodexy):
              #   C[i,j]=2000
     return C
     
+def compare_run_time():
+    print(datetime.datetime.now())
+    #put the test code 1 here
+    print(datetime.datetime.now())
+    #put the test code 2 here
+    print(datetime.datetime.now())
+    return

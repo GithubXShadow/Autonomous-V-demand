@@ -54,10 +54,10 @@ def analysis_result(darp_solution,sorted_trips,Vehicular_Skim_Dict,superzone_map
         lambda row:prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,row.value_of_time,Vehicular_Skim_Dict,1,
             superzone_map,drivingcost_per_mile),axis=1).sum()
 
-    darp_analyzed_result['num_delayed_trips']=sum(1 for i in schedule_deviation if i >1)
-    darp_analyzed_result['num_early_trips']=sum(1 for i in schedule_deviation if i <-1)
-    darp_analyzed_result['total_delayed_time']=round(sum(i for i in schedule_deviation if i >0),3)
-    darp_analyzed_result['Total_early_time']=round(sum(i for i in schedule_deviation if i <0),3)
+    # darp_analyzed_result['num_delayed_trips']=sum(1 for i in schedule_deviation if i >1)
+    # darp_analyzed_result['num_early_trips']=sum(1 for i in schedule_deviation if i <-1)
+    # darp_analyzed_result['total_delayed_time']=round(sum(i for i in schedule_deviation if i >0),3)
+    # darp_analyzed_result['Total_early_time']=round(sum(i for i in schedule_deviation if i <0),3)
 
     darp_analyzed_result['total_reward']=darp_solution['total_reward']
     darp_analyzed_result['total_schedule_penalty']=darp_solution['total_schedule_penalty']
@@ -138,7 +138,8 @@ def load_obj(name,file_path ):
     with open(file_path + name + '.pkl', 'rb') as f:
         return pickle.load(f)
 
-def analysis_one_hh_result(target_hh_id,darp_solutions,target_trips,num_cav,Vehicular_Skim_Dict,superzone_map):
+def analysis_one_hh_result(target_hh_id,darp_solutions,target_trips,num_cav,Vehicular_Skim_Dict,
+    superzone_map):
     for solution in darp_solutions:
         # print(solution['route_info'])
         if not solution['route_info'].hh_id.empty:
@@ -155,4 +156,65 @@ def analysis_one_hh_result(target_hh_id,darp_solutions,target_trips,num_cav,Vehi
     #                     target_trips,Vehicular_Skim_Dict,superzone_map)
     for key,value in zz.items():
         print(key,value)
+    return
+
+def analysis_one_hh_result_new_darpsolution(target_hh_id,darp_solutions,target_trips,num_cav,
+    Vehicular_Skim_Dict,superzone_map):
+    
+    target_solution=darp_solutions[target_hh_id]
+    plot_route_info_schedule(target_solution['route_info'],
+                             target_trips[target_trips.hh_id==target_hh_id],num_cav)
+    # plot_route_info_schedule(target_solution['route_info'],
+    #                          target_trips,num_cav)
+    zz=analysis_result(target_solution,
+                        target_trips[target_trips.hh_id==target_hh_id],Vehicular_Skim_Dict,superzone_map)
+    # zz=analysis_result(target_solution,
+    #                     target_trips,Vehicular_Skim_Dict,superzone_map)
+    for key,value in zz.items():
+        print(key,value)
+    return
+
+def analysis_network_level_results(route_info,darp_solutions,target_trips,Vehicular_Skim_Dict,superzone_map,
+    drivingcost_per_mile):
+    print('Number of AV Trips',len(route_info))
+    print('Number of Shared Rides',route_info.shared_ride_flag.sum())
+   
+    print('Total VMT',route_info.apply(
+        lambda row: prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,
+            row.origin_arrival_time,row.value_of_time,Vehicular_Skim_Dict,1,
+            superzone_map,drivingcost_per_mile),axis=1).sum())
+    print('Number of occupied trips  ',len(route_info.loc[route_info.person_id>0]))
+    print('Number of unoccupied trips ',len(route_info.loc[route_info.person_id==0]))
+    print('Number of transit trips',len(target_trips)-route_info.pickup_trip_flag.sum())
+    # print('Share of transit change',(len(target_trips)-route_info.pickup_trip_flag.sum())/len(target_trips))
+    print('total_convention_vehicle_driving_time',
+    target_trips.loc[target_trips.tripmode<=6].apply(lambda row: 
+        prd.estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,
+            Vehicular_Skim_Dict,2,superzone_map,drivingcost_per_mile),axis=1).sum()/60)
+    print('total_convention_vehicle_driving_distance',target_trips.loc[target_trips.tripmode<=6].apply(
+        lambda row: prd.estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,
+            row.value_of_time,Vehicular_Skim_Dict,1,
+            superzone_map,drivingcost_per_mile),axis=1).sum())
+
+    print('total_AV_driving_time',route_info.apply(lambda row: 
+        prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.origin_arrival_time,
+            row.value_of_time,Vehicular_Skim_Dict,2,superzone_map,drivingcost_per_mile),axis=1).sum()/60)
+
+    print('total_AV_unoccupied_driving_time',route_info.loc[route_info.person_id==0].apply(
+        lambda row: prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,
+            row.value_of_time,Vehicular_Skim_Dict,2,
+            superzone_map,drivingcost_per_mile),axis=1).sum()/60)
+
+    print('total_AV_driving_distance',route_info.apply(
+        lambda row:prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,
+            row.value_of_time,Vehicular_Skim_Dict,1,
+            superzone_map,drivingcost_per_mile) ,axis=1).sum())
+
+    print('total_AV_unoccupied_driving_distance',route_info.loc[route_info.person_id==0].apply(
+        lambda row:prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,
+            row.value_of_time,Vehicular_Skim_Dict,1,
+            superzone_map,drivingcost_per_mile),axis=1).sum())
+    
+  
+
     return

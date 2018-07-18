@@ -38,7 +38,7 @@ def get_travel_cost_matrix(sorted_trips,Vehicular_Skim_Dict,superzone_map,drivin
         correlated_vot.extend(sorted_trips.value_of_time)
     #     correlated_vot.extend(sorted_trips.value_of_time)
     #     correlated_vot.extend([0.16])
-        correlated_vot.extend([0.16]*(hh_num_trips+1))
+        correlated_vot.extend([0.01]*(hh_num_trips+1))
         # print('check5',datetime.datetime.now())
         for ti in range(num_time_interval):
             # print('check1',ti,datetime.datetime.now())
@@ -142,8 +142,8 @@ def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,
     opt_transit_time=1440
     transit_start_time_interval=math.ceil(trip_start_time/TransitSkimTimeIntervalLength)-1
     
-    transit_fare=1.75
-    transit_asc=0.5
+    transit_fare=2.25
+    transit_asc=3
     WalkSpeed=4.55672
     for otap in  transit_zone_dict[origin_zone]:
         for dtap in transit_zone_dict[dest_zone]: 
@@ -180,7 +180,7 @@ def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,
                 # opt_transit_time=Transit_AB_Time_Skim_Dict[otap][dtap][transit_start_time_interval]
                 # opt_walk_time=2*three_link_walk_dict[origin_zone][otap]/WalkSpeed/60
     if output_flag==0:
-        return min_transit_gc+transit_fare+transit_asc #+np.random.logistic()/0.6
+        return min_transit_gc+transit_fare+transit_asc+np.random.logistic()/0.6
     if output_flag==1:
         return opt_transit_time
     if output_flag==2:
@@ -223,14 +223,14 @@ def estimate_single_transit_trip_cost(origin_zone,dest_zone,trip_start_time,vot,
 #         return opt_walk_time
 def estimate_single_car_trip_cost(origin_zone,dest_zone,trip_start_time,
     vot,Vehicular_Skim_Dict,return_flag,superzone_map,drivingcost_per_mile):
-    car_trip_asc=-1.5
+    
     num_skim_interval=max(Vehicular_Skim_Dict[1][1])
     correlated_skim_time_interval=math.ceil(trip_start_time/num_skim_interval)
 
     time_temp=Vehicular_Skim_Dict[origin_zone][superzone_map[dest_zone]][correlated_skim_time_interval][1]['Time']
     cost_temp=Vehicular_Skim_Dict[origin_zone][superzone_map[dest_zone]][correlated_skim_time_interval][1]['Cost']
     dist_temp=Vehicular_Skim_Dict[origin_zone][superzone_map[dest_zone]][correlated_skim_time_interval][1]['Dist']
-    car_trip_cost=time_temp*(vot)+cost_temp+dist_temp*drivingcost_per_mile+car_trip_asc
+    car_trip_cost=time_temp*(vot)+cost_temp+dist_temp*drivingcost_per_mile
     if return_flag==0:
         return car_trip_cost
     elif return_flag==1:
