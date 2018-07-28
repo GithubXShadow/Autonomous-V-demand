@@ -139,7 +139,7 @@ def route_to_vehiclepathdat(route_infos,origin_links,folder_filepath,vehicle_fil
             internal_mapdat,external_mapdat,counter,origin_links,superzone_map,intrasuperzone_path_dic)
         # print(4,datetime.datetime.now())
         counter +=1
-        if counter%1000==0: 
+        if counter%10000==0: 
             print(counter,datetime.datetime.now())
     vehicledat.close()
     pathdat.close()
@@ -220,12 +220,12 @@ def save_run_result(run_name,route_info,darp_solutions,output_filepath):
 
 def write_darp_solution_to_file(run_name,output_filepath,route_info,darp_solutions,origin_links,
     superzone_map,intrasuperzone_path_dic,average_value_of_time,external_factor):
-    
-    save_run_result(run_name,route_info,darp_solutions,output_filepath)
-    output_filepath=output_filepath+external_factor+'/'
+    # average_value_of_time=0.16
+    # save_run_result(run_name,route_info,darp_solutions,output_filepath)
+    output_filepath=output_filepath+run_name+str(external_factor)+'/'
     vehicle_filepath=output_filepath+'vehicle.dat'
     path_filepath=output_filepath+'path.dat'
-    external_vehicle_filepath='Input/external_vehicle'+external_factor+'.dat'
+    external_vehicle_filepath='Input/external_vehicle'+str(external_factor)+'.dat'
     # average_value_of_time=round(traveler_trips.value_of_time.mean(),4)
     
     
@@ -233,14 +233,5 @@ def write_darp_solution_to_file(run_name,output_filepath,route_info,darp_solutio
                                 intrasuperzone_path_dic,external_vehicle_filepath,average_value_of_time)
     return
 
-def transit_trip_inconsistency_analysis(darp_solutions,target_trips):
-    more_transit_than_predicted=[]
-    less_transit_than_predicted=[]
 
-    for hh_id,group in target_trips.groupby('hh_id'):
-        if(len(group[group.predicted_mode=='Car'])<darp_solutions[hh_id]['num_pickup_trips']):
-            more_transit_than_predicted.extend([hh_id])
-        else:
-            less_transit_than_predicted.extend([hh_id])
-    return more_transit_than_predicted,less_transit_than_predicted
 

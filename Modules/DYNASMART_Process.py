@@ -202,21 +202,22 @@ def read_vehicle_skim(skim_folder_path):
                     VotValue.extend([float(line_list[4*j-3])])
                     Cost.extend([float(line_list[4*j-2])])
                     Time.extend([float(line_list[4*j-1])])
-                    Dist.extend([float(line_list[4*j])])
+                    Dist.extend([float(line_list[4*j])/2-1])
 
                     Vehicular_Skim_Dict[O][D][T][j]={}
                     Vehicular_Skim_Dict[O][D][T][j]['VOT']=float(line_list[4*j-3])
                     Vehicular_Skim_Dict[O][D][T][j]['Cost']=float(line_list[4*j-2])
                     Vehicular_Skim_Dict[O][D][T][j]['Time']=float(line_list[4*j-1])
-                    Vehicular_Skim_Dict[O][D][T][j]['Dist']=float(line_list[4*j])
-
+                    Vehicular_Skim_Dict[O][D][T][j]['Dist']=float(line_list[4*j])/2-1
 
     Vehicular_Skim=pd.DataFrame(data={'O':Os,'D':Ds,'TI':Ts ,'VotIndex':VotNo,'Vot':VotValue
                                      ,'Cost':Cost,'Time':Time,'Dist':Dist})    
-
-
     Vehicular_Skim.set_index(['O', 'D','TI','VotIndex'], inplace=True)
     Vehicular_Skim.sort_index(inplace=True)
+    if((Vehicular_Skim.Dist/Vehicular_Skim.Time*60).max()>100):
+        pritn('Error: SKim File Speed larger than 100 miles/hour')
+    elif (Vehicular_Skim.Dist.min()<0):
+        print('Error: Negative Distance')
     return Vehicular_Skim,Vehicular_Skim_Dict
 def read_transit_setting(transit_setting_filepath):
     f=open(transit_setting_filepath,'r')

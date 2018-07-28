@@ -762,7 +762,7 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
     darp_solution['total_AV_driving_distance']=route_info.apply(
         lambda row:prd.estimate_single_car_trip_cost(row.orig_zone,row.dest_zone,row.start_time,row.value_of_time,Vehicular_Skim_Dict,1,
             superzone_map,drivingcost_per_mile) ,axis=1).sum()
-    darp_solution['objective_value']=total_reward+ total_schedule_penalty+total_travel_cost
+    darp_solution['objective_value']=total_reward- total_schedule_penalty-total_travel_cost
     darp_solution['hh_id']=sorted_trips.hh_id.iloc[0]
     return darp_solution
 

@@ -94,7 +94,7 @@ def analysis_result(darp_solution,sorted_trips,Vehicular_Skim_Dict,superzone_map
 
 def plot_route_info_schedule(route_info,sorted_trips,num_cav):
 #     z=traveler_trips[traveler_trips.hh_id==route_info.hh_id[0]]
-    plt.pyplot.figure(1,figsize=[6.9,15])
+    plt.pyplot.figure(1,figsize=[2.3,5])
     sorted_trips.loc[:,'p_id']=sorted_trips.groupby(['person_id']).ngroup()
     # print(sorted_trips.loc[:,'p_id'].unique())
     hh_num_trips=len(sorted_trips)
@@ -118,6 +118,45 @@ def plot_route_info_schedule(route_info,sorted_trips,num_cav):
                     (route_info.orig_node_index<1+hh_num_trips) &
                     (route_info.hh_vehicle_id==ve),'origin_arrival_time'],
                     label=line_label)
+
+#     plt.pyplot.scatter(route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) & (route_info.dest_node_index<1+hh_num_trips),'p_id'],
+#                     route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) &(route_info.dest_node_index<1+hh_num_trips),'origin_arrival_time'])
+    plt.pyplot.xlabel('Traveler Index')
+    plt.pyplot.ylabel('Time')
+    plt.pyplot.legend()
+    plt.pyplot.grid()
+    plt.pyplot.xticks(np.arange(min(sorted_trips.p_id), max(sorted_trips.p_id)+1, 1))
+    plt.pyplot.yticks(np.arange(0,1441,120))
+#     plt.pyplot.title(title)
+    return 
+
+def plot_household_schedule(sorted_trips):
+#     z=traveler_trips[traveler_trips.hh_id==route_info.hh_id[0]]
+    plt.pyplot.figure(1,figsize=[2.3,5])
+    sorted_trips.loc[:,'p_id']=sorted_trips.groupby(['person_id']).ngroup()
+    # print(sorted_trips.loc[:,'p_id'].unique())
+    hh_num_trips=len(sorted_trips)
+    # person_id_and_inhouse_p_id_map=dict(zip(sorted_trips.person_id,sorted_trips.p_id))
+    # person_id_and_inhouse_p_id_map[0]=-1
+    # route_info['p_id']=route_info.person_id.apply(lambda x: person_id_and_inhouse_p_id_map[x])
+    # route_info.sort_values(by=['origin_arrival_time'],inplace=True)
+    # plt.pyplot.scatter(route_info.loc[(route_info.p_id!=-1) & 
+    #                 (route_info.orig_node_index<1+hh_num_trips),'p_id'],
+    #                 route_info.loc[(route_info.p_id!=-1) & 
+    #                 (route_info.orig_node_index<1+hh_num_trips),'origin_arrival_time'],label='_nolegend')
+    plt.pyplot.scatter(sorted_trips['p_id'],sorted_trips['starttime'])
+    # color=iter(plt.pyplot.cm.rainbow(np.linspace(0,1,num_cav)))
+    
+    # for ve in range(num_cav):
+    # # ve=1
+    #     line_label='AV '+str(ve+1)
+    #     plt.pyplot.plot(route_info.loc[(route_info.p_id!=-1) &
+    #                 (route_info.orig_node_index<1+hh_num_trips) &
+    #                 (route_info.hh_vehicle_id==ve),'p_id'],
+    #                 route_info.loc[(route_info.p_id!=-1) & 
+    #                 (route_info.orig_node_index<1+hh_num_trips) &
+    #                 (route_info.hh_vehicle_id==ve),'origin_arrival_time'],
+    #                 label=line_label)
 
 #     plt.pyplot.scatter(route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) & (route_info.dest_node_index<1+hh_num_trips),'p_id'],
 #                     route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) &(route_info.dest_node_index<1+hh_num_trips),'origin_arrival_time'])
@@ -220,11 +259,14 @@ def analysis_network_level_results(route_info,darp_solutions,target_trips,Vehicu
 def determin_number_car(darp_solution1,darp_solution2,route_info1,route_info2,car_operating_cost,target_trips):
     household_car_select_list=[[],[]]
     new_darp_solution={}
-    z=[[],[]]
+    z=[[],[],[]]
     for hh_id in target_trips.hh_id.unique():
         # print(darp_solution1[hh_id]['objective_value'],darp_solution1[hh_id]['num_cav'],darp_solution2[hh_id]['objective_value'],darp_solution2[hh_id]['num_cav'])
-        if (darp_solution1[hh_id]['objective_value']-darp_solution1[hh_id]['num_cav']*car_operating_cost\
-            >(darp_solution2[hh_id]['objective_value']-darp_solution2[hh_id]['num_cav']*car_operating_cost-150)):
+        z[2].extend([darp_solution1[hh_id]['objective_value']-darp_solution2[hh_id]['objective_value']])
+        if(abs(darp_solution1[hh_id]['total_reward'] -darp_solution2[hh_id]['total_reward'])>2):
+            print(hh_id)
+        if (darp_solution1[hh_id]['objective_value']+darp_solution1[hh_id]['num_cav']*car_operating_cost\
+            <(darp_solution2[hh_id]['objective_value']+darp_solution2[hh_id]['num_cav']*car_operating_cost)):
 
             z[0].extend([hh_id])
             new_darp_solution[hh_id]=darp_solution1[hh_id]
@@ -250,16 +292,22 @@ def plot_numtrips_numcav_relation(target_trips,hh_car_list):
     ax2.set_title('Households choose 2 AV')
     temp2.groupby('hh_id').count().person_id.hist(ax=ax1)
     temp1.groupby('hh_id').count().person_id.hist(ax=ax2)
-
     return
 
 def transit_trip_inconsistency_analysis(darp_solutions,target_trips):
-    more_transit_than_predicted=[]
-    less_transit_than_predicted=[]
+    hh_id_list=[]
+    difference=[]
+    num_trips=[]
+    num_shared_trips=[]
+    hh_size=[]
 
     for hh_id,group in target_trips.groupby('hh_id'):
-        if(len(group[group.predicted_mode=='Car'])<darp_solutions[hh_id]['num_pickup_trips']):
-            more_transit_than_predicted.extend([hh_id])
-        else:
-            less_transit_than_predicted.extend([hh_id])
-    return more_transit_than_predicted,less_transit_than_predicted
+        hh_id_list.extend([hh_id])
+        difference.extend([len(group[group.actual_mode=='Car'])-darp_solutions[hh_id]['num_pickup_trips']])
+        num_trips.extend([len(group)])
+        hh_size.extend([len(group.person_id.unique())])
+        num_shared_trips.extend([darp_solutions[hh_id]['num_shared_trips']])
+
+    transit_trip_inconsistency=pd.DataFrame({'hh_id':hh_id_list,'difference':difference,
+        'num_trips':num_trips,'num_shared_trips':num_shared_trips,'hh_size':hh_size})
+    return transit_trip_inconsistency
