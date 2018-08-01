@@ -735,6 +735,7 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
     darp_solution={}
     darp_solution['route_info']=route_info
     darp_solution['schedule_deviation']=sum(list(map(abs,schedule_deviation)))
+    darp_solution['schedule_deviation_list']=list(map(abs,schedule_deviation))
     darp_solution['total_reward']=total_reward
     darp_solution['total_schedule_penalty']=total_schedule_penalty
     darp_solution['total_travel_cost']=total_travel_cost

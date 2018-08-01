@@ -6,7 +6,8 @@ def identify_indiv_trip_before_jointtrip(traveler_trips):
         for index in range(len(traveler_trips[traveler_trips.person_id==traveler])-1):
 #             if(traveler==5982639):
 #                 print(traveler,index,(traveler_trips.loc[traveler_trips.person_id==traveler].iloc[index]['joint_trip_flag']==0),(traveler_trips.loc[traveler_trips.person_id==traveler].iloc[index+1]['joint_trip_flag']==1)) 
-            if (traveler_trips.loc[traveler_trips.person_id==traveler].iloc[index]['joint_trip_flag']==0) & (traveler_trips.loc[traveler_trips.person_id==traveler].iloc[index+1]['joint_trip_flag']==1):  
+            if (traveler_trips.loc[traveler_trips.person_id==traveler].iloc[index]['joint_trip_flag']==0) \
+            & (traveler_trips.loc[traveler_trips.person_id==traveler].iloc[index+1]['joint_trip_flag']==1):  
 #                 print(traveler,index)
                 before_joint_trip=before_joint_trip.append(traveler_trips[traveler_trips.person_id==traveler].iloc[index])
     check_joint_trip=traveler_trips.loc[(traveler_trips['joint_trip_flag']==1) & (traveler_trips.trip_counter>2)]
@@ -52,9 +53,12 @@ def estimate_num_vehicle_household(sorted_trips,method_flag):
                     end_temp=row.starttime+row.travel_time-1
                     min_vector[int(start_temp):int(end_temp)]+=1
     elif method_flag==3: #Conventional car for car trips
-        for person in sorted_trips.person_id.unique():
+        for person in sorted_trips.person_id.unique(): #For each person in the household
                 start_temp=0
+                end_temp=0
+                #Go through all the car trips of the person
                 for index, row in sorted_trips.loc[(sorted_trips.person_id==person) & (sorted_trips.tripmode<=6)].iterrows():
+                    #Find the time that the traveler is away from home with a car
                     if row.orig_purpose=='Home':
                         start_temp=row.starttime-1
                     elif row.dest_purpose=='Home':
@@ -62,7 +66,8 @@ def estimate_num_vehicle_household(sorted_trips,method_flag):
                             start_temp=row.starttime
                         end_temp=row.starttime+row.travel_time-1
                         min_vector[int(start_temp):int(end_temp)]+=1
-    
+        if max(min_vector)==0: #Some trips do not have return trip to the home
+            min_vector[0]=1
     return max(min_vector)
 
 # def math_orig_dest_nodes(): 

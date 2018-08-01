@@ -156,7 +156,6 @@ def write_one_veh_seq(route_info,file_obj,path_file_obj,internal_mapdat,
     infotmp=0         #Standard Input for Vehicle Specifications 
     ribftmp=0.0       #Standard Input for Vehicle Specifications  
     comptmp=0.0       #Standard Input for Vehicle Specifications  
-   
     if (route_info.iloc[0].intrasuperzone_flag==1):
         path_temp=intrasuperzone_path_dic[(route_info.iloc[0]['orig_zone'],route_info.iloc[0]['dest_zone'])]
         orig_u_node,orig_d_node=path_temp[0:2]
@@ -215,7 +214,6 @@ def save_run_result(run_name,route_info,darp_solutions,output_filepath):
         os.makedirs(output_filepath)
     route_info.to_csv(output_filepath+'route_info.csv')
     pod.save_obj(darp_solutions,'darp_solutions',output_filepath)
-
     return
 
 def write_darp_solution_to_file(run_name,output_filepath,route_info,darp_solutions,origin_links,
@@ -226,9 +224,6 @@ def write_darp_solution_to_file(run_name,output_filepath,route_info,darp_solutio
     vehicle_filepath=output_filepath+'vehicle.dat'
     path_filepath=output_filepath+'path.dat'
     external_vehicle_filepath='Input/external_vehicle'+str(external_factor)+'.dat'
-    # average_value_of_time=round(traveler_trips.value_of_time.mean(),4)
-    
-    
     route_to_vehiclepathdat(route_info,origin_links,output_filepath,vehicle_filepath,path_filepath,superzone_map,
                                 intrasuperzone_path_dic,external_vehicle_filepath,average_value_of_time)
     return
