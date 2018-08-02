@@ -87,4 +87,51 @@ def estimate_num_vehicle_household(sorted_trips,method_flag):
 #         else:
 #             orig_nodes.extend([last_dest_node])
 #             dest_nodes.extend([row.destination_node])
-#             last_dest_node=row.destination_node       
+#             last_dest_node=row.destination_node    
+#   return
+
+
+# def read_file_and convert_to_vehicle.dat():
+# route_info_mv=pd.read_csv('Output/AllHH/MV/route_info.csv')
+# darp_solutions_mv=pod.load_obj('darp_solutions','Output/AllHH/MV/' )
+# external_factor='50'
+# average_value_of_time=round(car_trips.value_of_time.mean(),4)
+# dtd.write_darp_solution_to_file('MV/','Output/AllHH/',route_info_mv,darp_solutions_mv,origin_links,
+#         superzone_map,intrasuperzone_path_dic,average_value_of_time,external_factor)   
+#   return
+
+# def run one test scenario for all household():
+# output_flag=0
+# # target_hh_id=2744264
+# min_length=15
+# max_length=20
+# single_model_runtime=60*3
+# drivingcost_per_mile=0.5
+# reward_mode=1
+# run_mode=0
+# darp_solutions=[]
+# cav_use_mode=0
+# num_time_interval=1
+# TL=[i*1440/num_time_interval for i in range(num_time_interval)]
+# TU=[(i+1)*1440/num_time_interval for i in range(num_time_interval)]
+# num_cav=1
+# share_ride_factor=1.5
+# time_window_flag=0
+
+# print('********************************')
+# print(share_ride_factor)
+# # target_trips=car_trips_sample[car_trips_sample.hh_id==1486727]
+
+# route_info_modechoice,darp_solutions_modechoice=\
+# bsod.get_route_info_allhh(car_transit_trips,
+#                          output_flag,min_length,max_length,single_model_runtime,drivingcost_per_mile,
+#                          reward_mode,run_mode,cav_use_mode,num_time_interval,num_cav,share_ride_factor
+#                          ,time_window_flag,Vehicular_Skim_Dict,
+#                          Transit_AB_Cost_Skim_Dict,Transit_AB_Time_Skim_Dict,three_link_walk_dict,
+#                          superzone_map,TL,TU,
+#                          transit_zone_dict,transit_zone_candidates,TransitMazTazFlag,
+#                          TransitSkimTimeIntervalLength )
+# output_filepath='Output/AllHH/'
+# dtd.save_run_result('MO/',route_info_modechoice,darp_solutions_modechoice,output_filepath)
+# # pod.analysis_network_level_results(route_info,darp_solutions,car_trips_sample,
+# #                                    Vehicular_Skim_Dict,superzone_map,drivingcost_per_mile)
