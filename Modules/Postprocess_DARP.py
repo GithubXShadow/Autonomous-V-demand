@@ -69,7 +69,8 @@ def analysis_result(darp_solution,sorted_trips,Vehicular_Skim_Dict,superzone_map
     darp_analyzed_result['num_cav']=darp_solution['num_cav']
     darp_analyzed_result['cav_use_mode']=darp_solution['cav_use_mode']
     darp_analyzed_result['time_window_flag']=darp_solution['time_window_flag']
-
+    darp_analyzed_result['total_travel_cost']=darp_solution['total_travel_cost']
+    # darp_analyzed_result['total_delayed_time']=darp_solution['total_delayed_time']
     # print('Number of CAV Trips',darp_analyzed_result['num_cav_trips'])
     # print('Number of Occupied trips',darp_analyzed_result['num_occupied_trips'])
     # print('Number of unoccupied trips',darp_analyzed_result['num_unoccupied_trips'])
@@ -162,7 +163,7 @@ def plot_household_schedule(sorted_trips):
 #                     route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) &(route_info.dest_node_index<1+hh_num_trips),'origin_arrival_time'])
     plt.pyplot.xlabel('Traveler Index')
     plt.pyplot.ylabel('Time')
-    plt.pyplot.legend()
+    # plt.pyplot.legend()
     plt.pyplot.grid()
     plt.pyplot.xticks(np.arange(min(sorted_trips.p_id), max(sorted_trips.p_id)+1, 1))
     plt.pyplot.yticks(np.arange(0,1441,120))
