@@ -22,7 +22,7 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
     2 schedule rescheduling
     cav_use_mode:
         0 if all num_cav must be used
-        1 if num_cav is the upper limite
+        1 if num_cav is the upper limit
     '''
     m1=Model("AVSchedule_seq_adjust")
     # x=m1.addVars(2*hh_num_trips+2,2*hh_num_trips+2,num_cav,vtype=GRB.BINARY,name="x")
@@ -199,7 +199,7 @@ def dial_n_ride_model_schedule_adjustment(num_hh_member,hh_num_trips,C,TT,TL,TU,
     x[last_node,2*hh_num_trips+1,0,expected_arrival_time_interval].start=1
     # print('alexcheck',laste_node,sum(sum(x_temp[34,:,:,:])),expected_arrival_time[34],TL[4])
     x_temp[last_node,2*hh_num_trips+1,0,expected_arrival_time_interval]=1
-    
+   
     ###############################################################
     m1.optimize()
     if output_flag>0:
@@ -252,12 +252,12 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     
     m1.addConstrs((x.sum(i,"*",ve)==x.sum("*",i+hh_num_trips,ve) 
         for i in range(1,hh_num_trips+1) for ve in range(num_cav)),"DemandbeDelivered11")
-    # if reward_mode==0 and time_window_flag !=1: #if reward mode is zero then force the cav to pick up all target trips
-    #     m1.addConstrs((x.sum(i,"*","*")==1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
-    #     m1.addConstrs((x.sum("*",j,"*")==1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
-    # else: 
-    m1.addConstrs((x.sum(i,"*","*")<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
-    m1.addConstrs((x.sum("*",j,"*")<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
+    if reward_mode==0 and time_window_flag !=1: #if reward mode is zero then force the cav to pick up all target trips
+        m1.addConstrs((x.sum(i,"*","*")<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
+        m1.addConstrs((x.sum("*",j,"*")<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
+    else: 
+        m1.addConstrs((x.sum(i,"*","*")<=1 for i in range(1,2*hh_num_trips+1) ),"PickupOnce12")
+        m1.addConstrs((x.sum("*",j,"*")<=1 for j in range(1,2*hh_num_trips+1) ),"DeliverOnce13")
 
     m1.addConstrs((x.sum("*",i,ve)==x.sum(i,"*",ve) for i in range(1,2*hh_num_trips+1) for ve in range(num_cav)),"FlowConvervative14")
     m1.addConstrs((x[i,i,ve]==0 for i in range(2*hh_num_trips+2) for ve in range(num_cav)),"NoSamePointCircleVisit")
@@ -301,7 +301,7 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
     obj1=sum(x.sum(i,'*',"*")*R[i] for i in range(hh_num_trips+1))
     obj2=S.sum()
     obj3=sum(x.sum(i,j,"*")*C[i,j] for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2))
-    obj4= sum(x.sum(i,'*','*')*30 for i in [0])
+   
     if reward_mode==0 and time_window_flag !=1 :
         m1.setObjective(obj1-obj2-obj3, GRB.MAXIMIZE)
     elif num_cav>1:
@@ -311,11 +311,6 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
 
     m1.setParam(GRB.Param.OutputFlag,output_flag)
     m1.Params.TIME_LIMIT=single_model_runtime
-    # m1.setParam(GRB.Param.MIPGap,0.01)
-    # print('***********************')
-    # print(R[9],C[9,20],C[8,19],C[10,21],C[19,10])
-    # m1.addConstrs((x.sum(9,'*',ve)==0 for ve in range(num_cav)),'tempconstraints')
-    # print('***********************')
     ##############################################################
     # Preprocessing
     # for ve in range(num_cav):
@@ -337,7 +332,9 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
             for ve in range(num_cav):
                 x[i,j,ve].start=0
     # x["*","*","*"].start=0
-
+    x_temp=np.zeros((2*hh_num_trips+2,2*hh_num_trips+2,num_cav))
+    x_temp[0,1,0]=1
+    x_temp[1,1+hh_num_trips,0]=1
     x[0,1,0].start=1
     x[1,1+hh_num_trips,0].start=1
     last_node=1+hh_num_trips
@@ -348,17 +345,20 @@ def dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
         if expected_arrival_time[last_node]+TT[last_node,i]<expected_arrival_time[i]:
             x[last_node,i,0].start=1
             x[i,i+hh_num_trips,0].start=1
+            x_temp[last_node,i,0]=1
+            x_temp[i,i+hh_num_trips,0]=1
             last_node=i+hh_num_trips
         else: 
             x[last_node,i,0].start=0
             x[i,i+hh_num_trips,0].start=0
+            x_temp[last_node,i,0]=0
+            x_temp[i,i+hh_num_trips,0]=0
     x[last_node,2*hh_num_trips+1,0].start=1
-
+    x_temp[last_node,2*hh_num_trips+1,0]=1
 #     print('The heuristic solution: ',obj1.getValue(),obj2.getValue(),obj3.getValue())
     
     #Check if the warm start is an feasible solution
-#     x_temp=np.zeros((2*hh_num_trips+2,2*hh_num_trips+2))
-#     x_temp[0,1]=1
+    
 #     x_temp[1,1+hh_num_trips]=1
 #     last_node=1+hh_num_trips
 #     T_temp=expected_arrival_time
@@ -460,7 +460,7 @@ def find_av_schedule_exact_method(target_hh_id,traveler_trips,output_flag,min_le
     m1,x,T,obj1_value,obj2_value,obj3_value=dial_n_ride_model(num_hh_member,hh_num_trips,C,TT,sorted_trips,
                 expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,
                 R,Vehicular_Skim_Dict,share_ride_factor,output_flag,run_mode,reward_mode,num_cav,cav_use_mode,time_window_flag,single_model_runtime)
-    route_info=extract_route_from_model_solution(x,T,R,TT,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode)
+    route_info=extract_route_from_model_solution(x,T,R,C,TT,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode)
     if not route_info.empty:
         route_info=break_route_to_seg(route_info,superzone_map)
     return route_info
@@ -472,7 +472,6 @@ def get_route_info_allhh(traveler_trips,output_flag,min_length,max_length,single
     '''
     This function loops over all the household and find the optimal path for all of them. Return route_infos that 
     stores all the route related information for all households
-    
     '''
     counter=0
     route_infos=pd.DataFrame()
@@ -480,19 +479,17 @@ def get_route_info_allhh(traveler_trips,output_flag,min_length,max_length,single
     # row_number=0
     for target_hh_id in traveler_trips.hh_id.unique():
         # row_number=row_number+len(traveler_trips[traveler_trips.hh_id==household_id])
-        if counter%50==0: 
+        if counter%1000==0: 
             print('Estimate Route for the ',counter,'th household ',datetime.datetime.now())
 
         counter=counter+1
         target_hh=traveler_trips[(traveler_trips['hh_id']==target_hh_id)]\
         .drop_duplicates(subset=['orig_maz','dest_maz','orig_purpose','dest_purpose',
                                  'starttime','joint_trip_flag'])
-
-       
         #Sort all trips based on start time. This step could reduce the solving time and make it easier to track
         sorted_trips=target_hh.sort_values("starttime")
         hh_num_trips=sorted_trips.shape[0]
-        print(datetime.datetime.now(),'\t',hh_num_trips,'\t',target_hh_id)
+        # print(datetime.datetime.now(),'\t',counter,'\t',hh_num_trips,'\t',target_hh_id)
         sorted_trips["hh_index"]=(range(hh_num_trips))
         
         # sorted_trips=sorted_trips.loc[sorted_trips.tripmode<=6]
@@ -506,7 +503,7 @@ def get_route_info_allhh(traveler_trips,output_flag,min_length,max_length,single
             route_infos=route_infos.append(route_info)
        
     return  route_infos,darp_solutions
-def extract_route_from_model_solution(x,T,R,TT,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,
+def extract_route_from_model_solution(x,T,R,C,TT,sorted_trips,visit_candidate_zone,hh_num_trips,expected_arrival_time,
     expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode):
     '''
     This function extract route information from the MIP solution and convert the x, T in to trip list.
@@ -524,7 +521,7 @@ def extract_route_from_model_solution(x,T,R,TT,sorted_trips,visit_candidate_zone
         if run_mode<2:
             route_seq_dict={i:j for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) if x[i,j,ve].x > 0.5}
         else:
-            route_seq_dict={i:j for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) 
+            route_seq_dict={i:j for i in range(2*hh_num_trips+2) for j in range(2*hh_num_trips+2) \
             for ti in range(num_time_interval) if x[i,j,ve,ti].x > 0.5}
 
         route_node=[0]
@@ -538,14 +535,13 @@ def extract_route_from_model_solution(x,T,R,TT,sorted_trips,visit_candidate_zone
         for node in route_node[:-1]:
             if node<hh_num_trips+1 and node>0:
                 travelers_set.add(sorted_trips.iloc[node-1]['person_id'])
-                travelers.extend([sorted_trips.iloc[node-1]['person_id']])
+                travelers.extend([sorted_trips.iloc[node-1]['person_id']])                
             elif node<2*hh_num_trips+1 and node>hh_num_trips:
                 travelers_set.remove(sorted_trips.iloc[node-1-hh_num_trips]['person_id'])
                 if travelers_set==set():
                     travelers.extend([0])
                 else:
                     travelers.extend([list(travelers_set)[0]])
-
         vot=[0.01 if traveler==0 
              else sorted_trips[sorted_trips.person_id==traveler]['value_of_time'].iloc[0]
             for traveler in travelers]
@@ -553,8 +549,8 @@ def extract_route_from_model_solution(x,T,R,TT,sorted_trips,visit_candidate_zone
              else max(0,expected_leave_time[route_node[i+1]]-expected_arrival_time[route_node[i+1]])
             for i in range(len(travelers))]
 
-        start_time=[expected_leave_time[route_node[i-1]] for i in range(1,len(route_node))]
-        origin_arrival_time=[T[route_node[i-1]].x for i in range(1,len(route_node))] 
+        start_time=[expected_leave_time[node] for node in route_node[:-1]]
+        origin_arrival_time=[T[i].x for i in route_node[:-1]] 
         dest_arrival_time= [T[node].x for node in route_node[1:]]
         dest_expected_arrival_time=[expected_arrival_time[node] for node in route_node[1:]]
         route=[visit_candidate_zone[x] for x in route_node]
@@ -565,8 +561,19 @@ def extract_route_from_model_solution(x,T,R,TT,sorted_trips,visit_candidate_zone
                         else 0 for i in route_node[1:-1]]
         transit_utility=[R[i] if i<=hh_num_trips \
                         else 0 for i in route_node[1:-1]]
-        car_utility=[TT[i,j]  for i,j in zip(route_node[1:-1],route_node[2:])]
+        if run_mode<2:
+            car_time=[TT[i,j]  for i,j in zip(route_node[1:-1],route_node[2:])]
+            car_utility=[C[i,j]  for i,j in zip(route_node[1:-1],route_node[2:])]
 
+        else: 
+            if num_time_interval==5:
+                TL=[0,280,420,780,960]
+                TU=[280,420,780,960,1440]
+            else:
+                TL=[i*1440/num_time_interval for i in range(num_time_interval)]
+                TU=[(i+1)*1440/num_time_interval for i in range(num_time_interval)]
+            car_time=[TT[i,j,get_time_interval(t,TL,TU,num_time_interval)]  for i,j,t in zip(route_node[1:-1],route_node[2:],origin_arrival_time[1:])]
+            car_utility=[C[i,j,get_time_interval(t,TL,TU,num_time_interval)]  for i,j,t in zip(route_node[1:-1],route_node[2:],origin_arrival_time[1:])]
         route_info_temp=pd.DataFrame({'orig_zone':route[1:-1],'dest_zone':route[2:],'person_id':travelers[1:],
                                  'orig_node_index':route_node[1:-1],'dest_node_index':route_node[2:],
                                  'origin_arrival_time':origin_arrival_time[1:],'dest_arrival_time':dest_arrival_time[1:],
@@ -574,12 +581,12 @@ def extract_route_from_model_solution(x,T,R,TT,sorted_trips,visit_candidate_zone
                                  'start_time':start_time[1:],'Activity_Time':activity_time[1:],
                                  'hh_id':np.ones(len(route[1:-1]))*hh_id,'hh_vehicle_id':np.ones(len(route[1:-1]))*ve,
                                  'shared_ride_flag':shared_ride_flag,'pickup_trip_flag':pickup_trip_flag,
-                                 'transit_utility':transit_utility,'car_utility':car_utility},
+                                 'transit_utility':transit_utility,'car_utility':car_utility,'car_time':car_time},
                                 columns=['orig_zone','dest_zone','orig_node_index','dest_node_index',
                                          'person_id','origin_arrival_time','dest_arrival_time','dest_expected_arrival_time','value_of_time'
                                          ,'start_time','Activity_Time','hh_id','hh_vehicle_id',
                                          'shared_ride_flag','pickup_trip_flag','transit_utility',
-                                         'car_utility'])
+                                         'car_utility','car_time'])
         # print(route_info['orig_node_index'])
         route_info_temp['orig_traveler']=route_info_temp['orig_node_index'].apply(lambda x: node_traveler_dict[x])
         route_info_temp['dest_traveler']=route_info_temp['dest_node_index'].apply(lambda x: node_traveler_dict[x])
@@ -657,7 +664,6 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
     total_travel_cost=0
 
     for sub_sorted_trip in sub_sorted_trips:
-        
         num_hh_member,hh_num_trips,C,TT,expected_arrival_time,expected_leave_time,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,visit_candidate_zone\
         =prd.extract_hh_information(sub_sorted_trip,Vehicular_Skim_Dict,Transit_AB_Cost_Skim_Dict,superzone_map,drivingcost_per_mile,num_time_interval)
         # R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,TransitSkimTimeIntervalLength,Transit_AB_Cost_Skim_Dict,Transit_AB_Time_Skim_Dict,transit_zone_candidates,three_link_walk_dict)
@@ -675,11 +681,8 @@ def solve_with_schedule_partition(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Co
                 sub_sorted_trip,expected_arrival_time,early_penalty,late_penalty,early_penalty_threshold,
                 late_penalty_threshold,R,Vehicular_Skim_Dict,share_ride_factor,output_flag,run_mode,reward_mode,
                 num_cav,num_time_interval,cav_use_mode,time_window_flag,single_model_runtime)
-
-
-               
         # print('finish solving problem at ',datetime.datetime.now())
-        sub_route_info=extract_route_from_model_solution(x,T,R,TT,sub_sorted_trip,visit_candidate_zone,hh_num_trips,expected_arrival_time,
+        sub_route_info=extract_route_from_model_solution(x,T,R,C,TT,sub_sorted_trip,visit_candidate_zone,hh_num_trips,expected_arrival_time,
             expected_leave_time,superzone_map,num_cav,num_time_interval,run_mode)
         total_tailing_sub_trips_length=int(len(sorted_trips)-total_previous_sub_trips_length-len(sub_sorted_trip))
         sub_route_info['orig_node_index']=sub_route_info.orig_node_index.apply(
@@ -759,13 +762,14 @@ def solve_with_VNS(initial_route_info,num_hh_member,hh_num_trips,C,TT,sorted_tri
         #Then randomly insert into any location
         #How to determine this insertion process?
     return 
-def extract_solution_from_route_info(initial_route_info,hh_num_trips,num_cav):
+def extract_solution_from_route_info(initial_route_info,hh_num_trips,num_cav,sorted_trips):
     x_sol=np.zeros((2*hh_num_trips+2,2*hh_num_trips+2,num_cav))
     T_sol=np.zeros((2*hh_num_trips+2))
     initial_route_info.hh_vehicle_id=initial_route_info.hh_vehicle_id.astype(int)
     
     for i in range(num_cav): #Set the link to/from depot
         x_sol[0,initial_route_info.loc[initial_route_info.hh_vehicle_id==i].orig_node_index.iloc[0],i]=1
+        # print(initial_route_info.loc[initial_route_info.hh_vehicle_id==i].dest_node_index.iloc[-1],2*hh_num_trips+1)
         x_sol[initial_route_info.loc[initial_route_info.hh_vehicle_id==i].dest_node_index.iloc[-1],2*hh_num_trips+1,i]=1
         
     x_sol[[initial_route_info.orig_node_index,
@@ -779,42 +783,34 @@ def extract_solution_from_route_info(initial_route_info,hh_num_trips,num_cav):
     x_sol[[i for i in range(2*hh_num_trips+2)],
     [i for i in range(2*hh_num_trips+2)],
     :]=0
-    T_sol[initial_route_info.orig_node_index]=initial_route_info.origin_arrival_time
-    T_sol[initial_route_info.dest_node_index]=initial_route_info.dest_arrival_time
+    T_sol[list(initial_route_info.orig_node_index)]=initial_route_info.origin_arrival_time
+    T_sol[list(initial_route_info.dest_node_index)]=initial_route_info.dest_arrival_time
+    T_sol[0]=sorted_trips.iloc[0].starttime-1
+    T_sol[2*hh_num_trips+1]=1440
     return x_sol,T_sol
 
-def move_neighborhood(x_sol,T_sol,initial_route_info,hh_num_trips,num_cav,shake_size,Vehicular_Skim_Dict,visit_candidate_zone,share_ride_factor):
-    #From each route 
-    np.random.seed(seed=1)
+def move_neighborhood(x_sol,T_sol,sorted_trips,initial_route_info,C,TT,TL,TU,num_time_interval,num_cav,hh_num_trips,
+    expected_arrival_time,Vehicular_Skim_Dict,visit_candidate_zone,early_penalty,late_penalty,
+    early_penalty_threshold,late_penalty_threshold,superzone_map):
+    #First identify the best objective value of current solution
+    m3,T_sol,best_obj=optimal_start_time(sorted_trips,x_sol,T_sol,C,TT,TL,TU,num_time_interval,num_cav,hh_num_trips,
+    expected_arrival_time,Vehicular_Skim_Dict,visit_candidate_zone,early_penalty,late_penalty,
+    early_penalty_threshold,late_penalty_threshold,superzone_map)
+    print(best_obj)
+    # Select the shopping trips as target for removal
+    target_request=list(sorted_trips[(sorted_trips.orig_purpose=='Shop')|(sorted_trips.dest_purpose=='Shop')].hh_index)
+    # target_request=np.random.choice(initial_route_info.loc[initial_route_info.hh_vehicle_id==i].orig_node_index,size=2)
+    target_nodes=[i for i in target_request]
+    target_nodes.extend([j+hh_num_trips for j in target_request]) #Find the correspoding pickup/delivery node
+    #Remove the shopping trips from current routes
     for i in range(num_cav):
-        # Randomly select n=shake_size requests
-        target_request=np.random.choice(initial_route_info.loc[initial_route_info.hh_vehicle_id==i].orig_node_index,size=2)
-        target_nodes=[target_request[j]-hh_num_trips if target_request[j]>hh_num_trips
-                      else target_request[j]+hh_num_trips for j in range(shake_size)]
-        target_nodes.extend([target_request[i] for i in range(shake_size)])
-        target_nodes.sort()
-        print('target nodes are',target_nodes)
-        # Remove the request from the route
-        x_sol=sod.random_remove_request(x_sol,target_nodes,i,hh_num_trips)
-        #Randomly select another route 
-        vehicle_list=list(range(num_cav))
-        vehicle_list.remove(i)
-        target_route=np.random.choice(vehicle_list)
+        x_sol_temp=remove_request_from_route(x_sol,target_nodes,i,hh_num_trips)
+    print('target nodes are',target_nodes)
+    #Reinsert the trips to the origin 
+    for i in range(num_cav):
         # Insert the node one by one
         for node in target_nodes[0:int(len(target_nodes)/2)]:
             #First inseart before the first trip
-            upstream_node=0
-            downstream_node=initial_route_info.loc[initial_route_info.hh_vehicle_id==target_route].orig_node_index.iloc[0]
-            upstreamtimeinterval=1
-            downstreamtimeinterval=math.ceil(T_sol[downstream_node]/20.0)
-            best_tt=1440
-            for ti in range(upstreamtimeinterval,downstreamtimeinterval):                
-                tt=Vehicular_Skim_Dict[visit_candidate_zone[upstream_node]][visit_candidate_zone[node]][ti][1]
-                if tt<best_tt:
-                    best_tt=tt
-                    best_ti=ti
-            driving_time_limit=share_ride_factor*Vehicular_Skim_Dict[visit_candidate_zone[node]][visit_candidate_zone[node+hh_num_trips]][ti][1]
-
             for (upstream_node,downstream_node) \
             in zip(initial_route_info.loc[initial_route_info.hh_vehicle_id==target_route].orig_node_index,\
                 initial_route_info.loc[initial_route_info.hh_vehicle_id==target_route].dest_node_index):
@@ -824,40 +820,32 @@ def move_neighborhood(x_sol,T_sol,initial_route_info,hh_num_trips,num_cav,shake_
     #             x_sol_temp
     #             upstream_node=
 
-    #Inseart the request to the route
-
     return
 
-def remove_request_from_route(x_sol,target_nodes,vehicle_id,hh_num_trips):
-    for node in target_nodes:
-        upstream_node=np.where(x_sol[:,node,vehicle_id]==1)
-        downstream_node=np.where(x_sol[node,:,vehicle_id]==1)
-        if node==1:
-            upstream_node=0
-        elif node==2*hh_num_trips:
-            downstream_node=2*hh_num_trips+1
-        x_sol[upstream_node,downstream_node,vehicle_id]=1
-        x_sol[upstream_node,node,vehicle_id]=0
-        x_sol[node,downstream_node,vehicle_id]=0
+def remove_request_from_route(x_sol,target_node,vehicle_id,hh_num_trips):
+    upstream_node=np.where(x_sol[:,target_node,vehicle_id]==1)
+    downstream_node=np.where(x_sol[target_node,:,vehicle_id]==1)
+    # print(target_node,upstream_node,downstream_node)
+    if upstream_node==1:
+        upstream_node=0
+    elif target_node==2*hh_num_trips:
+        downstream_node=2*hh_num_trips+1
+    x_sol[upstream_node,downstream_node,vehicle_id]=1
+    x_sol[upstream_node,target_node,vehicle_id]=0
+    x_sol[target_node,downstream_node,vehicle_id]=0
     return x_sol
 
-
-
-def optimal_start_time(sorted_trips,x_sol,T_sol,C,TT,TL,TU,num_time_interval,num_cav,hh_num_trips,expected_arrival_time,Vehicular_Skim_Dict,
-    visit_candidate_zone,early_penalty,late_penalty,early_penalty_threshold,late_penalty_threshold,superzone_map):
+def optimal_start_time(sorted_trips,x_sol,T_sol,C,TT,TL,TU,num_time_interval,num_cav,hh_num_trips,
+    expected_arrival_time,Vehicular_Skim_Dict,visit_candidate_zone,early_penalty,late_penalty,
+    early_penalty_threshold,late_penalty_threshold,superzone_map):
     print(datetime.datetime.now())
     m3=Model("Optimal_Start_Time")
     T=m3.addVars(2*hh_num_trips+2,name="T",vtype=GRB.CONTINUOUS) #T represent the expected arrivial time at a node
-    T2=m3.addVars(2*hh_num_trips+2,name="T",vtype=GRB.CONTINUOUS) #T represent the expected arrivial time at a node
+    T2=m3.addVars(2*hh_num_trips+2,name="T2",vtype=GRB.CONTINUOUS) #T represent the expected arrivial time at a node
     x=m3.addVars(2*hh_num_trips+2,num_time_interval,name='x',vtype=GRB.BINARY)
+    # y=m3.addVars(2*hh_num_trips+2,2*hh_num_trips+2,name='y',vtype=GRB.BINARY)
     B=1440
     # First define the late early arrival penalty function
-    # m1.addConstrs((S[i]>=early_penalty[i]*(expected_arrival_time[i]-T[i]) for i in range(2*hh_num_trips+2)),'earlyarrivalpenalty')
-    # m1.addConstrs((S[i]>=late_penalty[i]*(T[i]-expected_arrival_time[i]) for i in range(2*hh_num_trips+2)),'latearrivalpenalty')
-    # m1.addConstrs((S[i]>=2*early_penalty[i]*(expected_arrival_time[i]-T[i])-early_penalty[i]*early_penalty_threshold[i] 
-    #     for i in range(2*hh_num_trips+2)),'earlyarrivaloverthrespenalty')
-    # m1.addConstrs((S[i]>=2*late_penalty[i]*(T[i]-expected_arrival_time[i])-late_penalty[i]*late_penalty_threshold[i] 
-    #     for i in range(2*hh_num_trips+2)),'latearrivaloverthrespenalty')
     m3.setObjective(1,GRB.MINIMIZE)
     for i in range(2*hh_num_trips+2):
         m3.setPWLObj(T[i],
@@ -881,6 +869,7 @@ def optimal_start_time(sorted_trips,x_sol,T_sol,C,TT,TL,TU,num_time_interval,num
             for i in range(2*hh_num_trips+2) for ti in range(num_time_interval)),'get_time_interval1')
     m3.addConstrs((T[i]-TL[ti]*x[i,ti]>=0 
         for i in range(2*hh_num_trips+2) for ti in range(num_time_interval)),'get_time_interval2')
+    m3.setParam(GRB.Param.OutputFlag,0)
     m3.optimize()
     print(datetime.datetime.now())
     return m3,T,m3.objVal
@@ -891,11 +880,15 @@ def get_time_interval(time_input,TL,TU,num_time_interval):
     '''
     if num_time_interval==5:
         i=0
-        while True:
-            if TL[i]<=time_input<=TU[i]:
-                corresponding_time_interval=i
-                break
-            i+=1
+        if time_input>1440:
+            corresponding_time_interval=4
+        else:
+            while True:
+                # print(time_input,TL[i],TU[i])
+                if TL[i]<=time_input<=TU[i]:
+                    corresponding_time_interval=i
+                    break
+                i+=1
     else:
         corresponding_time_interval=math.floor(time_input/(1440/num_time_interval))
     return corresponding_time_interval

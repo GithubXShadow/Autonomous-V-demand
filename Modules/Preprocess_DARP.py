@@ -43,8 +43,11 @@ def get_travel_cost_matrix(sorted_trips,Vehicular_Skim_Dict,superzone_map,drivin
         if num_time_interval==5:
          #If there is 5 timer intervals. Then mannually break the time interverl i
          # nto early morning, morning peak, afternonn, eveying peak and late night
-            TL=[0,270,420,780,960]
-            TU=[270,420,780,960,1440]
+            TL=[0,280,420,780,960]
+            TU=[280,420,780,960,1440]
+        else:
+            TL=[i*1440/num_time_interval for i in range(num_time_interval)]
+            TU=[(i+1)*1440/num_time_interval for i in range(num_time_interval)]
         # print('check5',datetime.datetime.now())
         for ti in range(num_time_interval):
             # print('check1',ti,datetime.datetime.now())
@@ -59,11 +62,11 @@ def get_travel_cost_matrix(sorted_trips,Vehicular_Skim_Dict,superzone_map,drivin
                     if i!=j:
                         if num_time_interval==1:
                             current_skim_time_interval=correlated_skim_time_interval[i]
-                        if (correlated_skim_time_interval[i]*(1440/num_skim_interval)<TU[ti]) and \
+                        if (correlated_skim_time_interval[i]*(1440/num_skim_interval)<=TU[ti]) and \
                             (correlated_skim_time_interval[i]*(1440/num_skim_interval)>TL[ti]):
                             # If the trip start time falls in the ti time interval, then use the actual skim interal, otherwise, use the middle of the ti time interval
                             current_skim_time_interval=correlated_skim_time_interval[i] 
-
+                        
                         time_temp=Vehicular_Skim_Dict[ozone][superzone_map[dzone]][current_skim_time_interval][1]['Time']
                         cost_temp=Vehicular_Skim_Dict[ozone][superzone_map[dzone]][current_skim_time_interval][1]['Cost']
                         dist_temp=Vehicular_Skim_Dict[ozone][superzone_map[dzone]][current_skim_time_interval][1]['Dist']
@@ -102,17 +105,16 @@ def get_travel_cost_matrix(sorted_trips,Vehicular_Skim_Dict,superzone_map,drivin
         correlated_vot.extend(sorted_trips.value_of_time)
     #     correlated_vot.extend(sorted_trips.value_of_time)
     #     correlated_vot.extend([0.16])
-        correlated_vot.extend([0.16]*(hh_num_trips+1))
+        correlated_vot.extend([0.01]*(hh_num_trips+1))
         for i,ozone in zip(range(len(visit_candidate_zone)),visit_candidate_zone):
             for j,dzone in zip(range(len(visit_candidate_zone)),visit_candidate_zone):
                 if i!=j:
                     time_temp=Vehicular_Skim_Dict[ozone][superzone_map[dzone]][correlated_skim_time_interval[i]][1]['Time']
                     cost_temp=Vehicular_Skim_Dict[ozone][superzone_map[dzone]][correlated_skim_time_interval[i]][1]['Cost']
                     dist_temp=Vehicular_Skim_Dict[ozone][superzone_map[dzone]][correlated_skim_time_interval[i]][1]['Dist']
-
+                    
                     C[i,j]=time_temp*correlated_vot[i]+cost_temp+dist_temp*drivingcost_per_mile
-                    TT[i,j]=time_temp
-                
+                    TT[i,j]=time_temp                                           
                     #The cost and travel time between the destination of ith trip and the origin of i+1th trip of same traveler is zero
                     if j==i-hh_num_trips+1 and i <2*hh_num_trips: 
                         if (sorted_trips.iloc[i-hh_num_trips-1].person_id == sorted_trips.iloc[j-1].person_id):
@@ -238,7 +240,8 @@ def estimate_single_car_trip_cost(origin_zone,dest_zone,trip_start_time,
     
     num_skim_interval=max(Vehicular_Skim_Dict[1][1])
     correlated_skim_time_interval=math.ceil(trip_start_time/(1440/num_skim_interval))
-
+    if correlated_skim_time_interval==0:
+        correlated_skim_time_interval=1
     time_temp=Vehicular_Skim_Dict[origin_zone][superzone_map[dest_zone]][correlated_skim_time_interval][1]['Time']
     cost_temp=Vehicular_Skim_Dict[origin_zone][superzone_map[dest_zone]][correlated_skim_time_interval][1]['Cost']
     dist_temp=Vehicular_Skim_Dict[origin_zone][superzone_map[dest_zone]][correlated_skim_time_interval][1]['Dist']
@@ -311,9 +314,11 @@ def estimate_trip_reward(hh_num_trips,sorted_trips,Vehicular_Skim_Dict,Transit_A
 #     for index,row in sorted_trips.iterrows():
 #       
     if reward_mode==0: #Set reward to a large number so that all trips are served by cav
+        # R=np.zeros(1+hh_num_trips)
         R=[0]
         for index,row in sorted_trips.iterrows():
             R.extend([10*estimate_single_car_trip_cost(row.orig_taz,row.dest_taz,row.starttime,row.value_of_time,Vehicular_Skim_Dict,2,superzone_map,drivingcost_per_mile)])
+
     elif reward_mode==1: #Set the reward to the utility of transit trips
         # R=estimate_transit_cost(sorted_trips,TransitMazTazFlag,TransitSkimTimeIntervalLength,
         #     Transit_AB_Cost_Skim_Dict,Transit_AB_Time_Skim_Dict,transit_zone_candidates,three_link_walk_dict,transit_zone_dict)
@@ -371,8 +376,8 @@ def extract_hh_information(sorted_trips,Vehicular_Skim_Dict,Transit_AB_Cost_Skim
     for i in range(1+hh_num_trips,2*hh_num_trips+1):
         #Expected arrival time at the destination node is the trip starttime + expected travel time
         if num_time_interval==5:
-            TL=[0,270,420,780,960]
-            TU=[270,420,780,960,1440]
+            TL=[0,280,420,780,960]
+            TU=[280,420,780,960,1440]
             expected_arrival_time_interval=\
             sod.get_time_interval(expected_arrival_time[i-hh_num_trips],TL,TU,num_time_interval)
 

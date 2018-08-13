@@ -108,7 +108,6 @@ def plot_route_info_schedule(route_info,sorted_trips,num_cav):
                     route_info.loc[(route_info.p_id!=-1) & 
                     (route_info.orig_node_index<1+hh_num_trips),'origin_arrival_time'],label='_nolegend')
     # color=iter(plt.pyplot.cm.rainbow(np.linspace(0,1,num_cav)))
-    
     for ve in range(num_cav):
     # ve=1
         line_label='AV '+str(ve+1)
@@ -119,7 +118,6 @@ def plot_route_info_schedule(route_info,sorted_trips,num_cav):
                     (route_info.orig_node_index<1+hh_num_trips) &
                     (route_info.hh_vehicle_id==ve),'origin_arrival_time'],
                     label=line_label)
-
 #     plt.pyplot.scatter(route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) & (route_info.dest_node_index<1+hh_num_trips),'p_id'],
 #                     route_info.loc[(route_info.p_id!=-1) & (route_info.orig_node_index<1+hh_num_trips) &(route_info.dest_node_index<1+hh_num_trips),'origin_arrival_time'])
     plt.pyplot.xlabel('Traveler Index')
